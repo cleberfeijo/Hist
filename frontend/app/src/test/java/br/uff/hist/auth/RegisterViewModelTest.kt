@@ -105,6 +105,28 @@ class RegisterViewModelTest {
         )
     }
 
+    @Test fun `422 com chave desconhecida mostra a mensagem geral`() = runTest {
+        api.registerHandler = {
+            throw httpError(
+                422, "validation_error", "Dados inválidos.",
+                """[{"field":"","message":"modelo inválido"},{"field":"a.b","message":"x"}]""",
+            )
+        }
+        fill()
+        vm.submit()
+        assertEquals("Dados inválidos.", vm.uiState.value.error)
+        assertFalse(vm.uiState.value.isSubmitting)
+    }
+
+    @Test fun `422 com chave conhecida nao duplica a mensagem geral`() = runTest {
+        api.registerHandler = {
+            throw httpError(422, "validation_error", "Dados inválidos.", """[{"field":"email","message":"inválido"}]""")
+        }
+        fill()
+        vm.submit()
+        assertNull(vm.uiState.value.error)
+    }
+
     @Test fun `erro de rede vai para error`() = runTest {
         api.registerHandler = { throw java.io.IOException("off") }
         fill()

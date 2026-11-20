@@ -1,6 +1,7 @@
 package br.uff.hist.auth
 
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
@@ -56,6 +57,7 @@ internal fun AuthTextField(
 internal fun PasswordField(
     value: String,
     onValueChange: (String) -> Unit,
+    onDone: () -> Unit,
     modifier: Modifier = Modifier,
     imeAction: ImeAction = ImeAction.Done,
     error: String? = null,
@@ -72,6 +74,7 @@ internal fun PasswordField(
         supportingText = error?.let { { Text(it) } },
         visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = imeAction),
+        keyboardActions = KeyboardActions(onDone = { onDone() }),
         trailingIcon = {
             IconButton(onClick = { visible = !visible }) {
                 Icon(

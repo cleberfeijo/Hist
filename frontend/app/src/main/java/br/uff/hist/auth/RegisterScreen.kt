@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -94,6 +95,7 @@ fun RegisterContent(
         PasswordField(
             value = state.password,
             onValueChange = onPasswordChange,
+            onDone = onSubmit,
             error = state.fieldErrors["password"],
             enabled = !state.isSubmitting,
         )
@@ -102,7 +104,7 @@ fun RegisterContent(
         }
         Button(onClick = onSubmit, enabled = !state.isSubmitting, modifier = Modifier.fillMaxWidth()) {
             if (state.isSubmitting) {
-                CircularProgressIndicator(Modifier.height(20.dp), strokeWidth = 2.dp)
+                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
             } else {
                 Text(stringResource(R.string.register_submit))
             }

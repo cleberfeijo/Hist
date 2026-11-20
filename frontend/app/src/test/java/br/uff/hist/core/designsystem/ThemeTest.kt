@@ -99,6 +99,10 @@ class ThemeTest {
         "onError" to s.onError,
         "errorContainer" to s.errorContainer,
         "onErrorContainer" to s.onErrorContainer,
+        "inversePrimary" to s.inversePrimary,
+        "inverseSurface" to s.inverseSurface,
+        "inverseOnSurface" to s.inverseOnSurface,
+        "surfaceTint" to s.surfaceTint,
     )
 
     @Test

@@ -42,6 +42,10 @@ object HistColors {
         onError = Color(0xFFFFFBF7),
         errorContainer = Color(0xFFF5D5CF),
         onErrorContainer = Color(0xFF4A140E),
+        inversePrimary = Color(0xFFF0A98A),
+        inverseSurface = Color(0xFF3A2F27),
+        inverseOnSurface = Color(0xFFF6F1E9),
+        surfaceTint = Color(0xFFB4532A),
     )
 
     val dark: ColorScheme = darkColorScheme(
@@ -76,5 +80,9 @@ object HistColors {
         onError = Color(0xFF3A0F0A),
         errorContainer = Color(0xFF5E2820),
         onErrorContainer = Color(0xFFFFDAD5),
+        inversePrimary = Color(0xFF8A5A0F),
+        inverseSurface = Color(0xFFE4E7EC),
+        inverseOnSurface = Color(0xFF1C2029),
+        surfaceTint = Color(0xFFF5B544),
     )
 }

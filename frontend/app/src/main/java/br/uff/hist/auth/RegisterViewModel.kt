@@ -25,6 +25,8 @@ data class RegisterUiState(
     val error: String? = null,
 )
 
+private val RENDERED_FIELDS = setOf("name", "last_name", "email", "password")
+
 const val PASSWORD_MIN_LENGTH = 8
 const val PASSWORD_MAX_LENGTH = 72
 
@@ -86,9 +88,13 @@ class RegisterViewModel @Inject constructor(
                 return copy(isSubmitting = false, fieldErrors = mapOf("email" to messages.of(error)))
             }
             if (error.fieldErrors.isNotEmpty()) {
+                val fields = error.fieldErrors.mapValues { it.value.take(ErrorMessages.MAX_SERVER_MESSAGE) }
+                // Chaves que nenhum campo exibe (caminho aninhado, "" de erro de modelo): mostra a mensagem geral.
+                val shown = fields.keys.any { it in RENDERED_FIELDS }
                 return copy(
                     isSubmitting = false,
-                    fieldErrors = error.fieldErrors.mapValues { it.value.take(ErrorMessages.MAX_SERVER_MESSAGE) },
+                    fieldErrors = fields,
+                    error = if (shown) null else messages.of(error),
                 )
             }
         }
