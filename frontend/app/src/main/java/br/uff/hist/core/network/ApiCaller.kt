@@ -15,26 +15,36 @@ class ApiCaller @Inject constructor(
     suspend fun <T> call(block: suspend () -> T): ApiResult<T> = try {
         val value = block()
         if (value is Response<*> && !value.isSuccessful) {
-            ApiResult.Failure(toError(value.errorBody()?.string()))
+            ApiResult.Failure(toError(value.code(), runCatching { value.errorBody()?.string() }.getOrNull()))
         } else {
             ApiResult.Success(value)
         }
     } catch (e: CancellationException) {
         throw e
     } catch (e: HttpException) {
-        ApiResult.Failure(toError(runCatching { e.response()?.errorBody()?.string() }.getOrNull()))
+        ApiResult.Failure(
+            toError(e.code(), runCatching { e.response()?.errorBody()?.string() }.getOrNull()),
+        )
     } catch (e: IOException) {
         ApiResult.Failure(AppError.Network)
     } catch (e: Exception) {
         ApiResult.Failure(AppError.Unknown)
     }
 
-    private fun toError(body: String?): AppError {
+    private fun toError(status: Int, body: String?): AppError {
         val envelope = body?.let {
             runCatching { json.decodeFromString(ErrorEnvelopeDto.serializer(), it) }.getOrNull()
-        } ?: return AppError.Unknown
+        }
+        if (envelope == null) {
+            // 401 sem envelope legível (proxy, gateway, corpo vazio): o token não vale mais.
+            if (status == HTTP_UNAUTHORIZED) {
+                sessionEvents.notifyExpired()
+                return AppError.SessionExpired
+            }
+            return AppError.Unknown
+        }
         val error = envelope.error
-        if (error.code in SESSION_CODES) {
+        if (error.code.lowercase() in SESSION_CODES) {
             sessionEvents.notifyExpired()
             return AppError.SessionExpired
         }
@@ -45,6 +55,7 @@ class ApiCaller @Inject constructor(
     }
 
     private companion object {
+        const val HTTP_UNAUTHORIZED = 401
         val SESSION_CODES = setOf("unauthorized", "session_revoked")
     }
 }

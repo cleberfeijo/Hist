@@ -14,4 +14,27 @@
     <string name="cat_sitio_arqueologico">Sítio arqueológico</string>
     <string name="cat_ferrovia">Estação / ferrovia</string>
     <string name="cat_outro">Outro</string>
+    <string name="error_network">Sem conexão. Verifique sua internet.</string>
+    <string name="error_unknown">Algo deu errado. Tente de novo.</string>
+    <string name="login_title">Entrar</string>
+    <string name="login_subtitle">Descubra a história do lugar onde você está.</string>
+    <string name="login_submit">Entrar</string>
+    <string name="login_to_register">Não tem conta? Cadastre-se</string>
+    <string name="login_missing_fields">Informe e-mail e senha.</string>
+    <string name="register_title">Criar conta</string>
+    <string name="register_submit">Cadastrar</string>
+    <string name="register_to_login">Já tem conta? Entre</string>
+    <string name="field_email">E-mail</string>
+    <string name="field_password">Senha</string>
+    <string name="field_name">Nome</string>
+    <string name="field_last_name">Sobrenome</string>
+    <string name="field_required">Campo obrigatório.</string>
+    <string name="field_password_length">A senha deve ter de 8 a 72 caracteres.</string>
+    <string name="password_show">Mostrar senha</string>
+    <string name="password_hide">Ocultar senha</string>
+    <string name="back">Voltar</string>
+    <string name="tab_explore">Explorar</string>
+    <string name="tab_profile">Perfil</string>
+    <string name="placeholder_soon">Em breve</string>
+    <string name="onboarding_continue">Continuar</string>
 </resources>

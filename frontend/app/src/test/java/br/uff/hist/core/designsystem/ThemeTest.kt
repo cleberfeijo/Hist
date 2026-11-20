@@ -3,7 +3,11 @@ package br.uff.hist.core.designsystem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.ColorScheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -69,5 +73,54 @@ class ThemeTest {
         }
         compose.waitForIdle()
         assertEquals(Color(0xFFF6F1E9), background)
+    }
+
+    private fun customizedRoles(s: ColorScheme) = mapOf(
+        "surfaceVariant" to s.surfaceVariant,
+        "surfaceDim" to s.surfaceDim,
+        "surfaceBright" to s.surfaceBright,
+        "surfaceContainerLowest" to s.surfaceContainerLowest,
+        "surfaceContainerLow" to s.surfaceContainerLow,
+        "surfaceContainer" to s.surfaceContainer,
+        "surfaceContainerHigh" to s.surfaceContainerHigh,
+        "surfaceContainerHighest" to s.surfaceContainerHighest,
+        "primaryContainer" to s.primaryContainer,
+        "onPrimaryContainer" to s.onPrimaryContainer,
+        "secondary" to s.secondary,
+        "onSecondary" to s.onSecondary,
+        "secondaryContainer" to s.secondaryContainer,
+        "onSecondaryContainer" to s.onSecondaryContainer,
+        "tertiary" to s.tertiary,
+        "onTertiary" to s.onTertiary,
+        "tertiaryContainer" to s.tertiaryContainer,
+        "onTertiaryContainer" to s.onTertiaryContainer,
+        "outlineVariant" to s.outlineVariant,
+        "error" to s.error,
+        "onError" to s.onError,
+        "errorContainer" to s.errorContainer,
+        "onErrorContainer" to s.onErrorContainer,
+    )
+
+    @Test
+    fun noRoleKeepsMaterialBaselineDefaults() {
+        val lightBase = customizedRoles(lightColorScheme())
+        val darkBase = customizedRoles(darkColorScheme())
+        customizedRoles(HistColors.light).forEach { (role, color) ->
+            assertNotEquals("light $role ainda e o padrao do M3", lightBase[role], color)
+        }
+        customizedRoles(HistColors.dark).forEach { (role, color) ->
+            assertNotEquals("dark $role ainda e o padrao do M3", darkBase[role], color)
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "night")
+    fun systemPreferenceResolvesToDarkWhenSystemIsNight() {
+        var background = Color.Unspecified
+        compose.setContent {
+            HistTheme(ThemePreference.SYSTEM) { background = MaterialTheme.colorScheme.background }
+        }
+        compose.waitForIdle()
+        assertEquals(Color(0xFF0F1115), background)
     }
 }

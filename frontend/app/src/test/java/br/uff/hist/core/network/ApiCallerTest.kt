@@ -10,6 +10,8 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import kotlinx.coroutines.CancellationException
+import org.junit.Assert.assertThrows
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
@@ -107,5 +109,55 @@ class ApiCallerTest {
     @Test fun `servidor desligado vira Network`() = runTest {
         server.shutdown()
         assertEquals(ApiResult.Failure(AppError.Network), caller.call { api.me() })
+    }
+
+    @Test fun `401 sem corpo expira a sessao e emite evento`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(401))
+        events.expired.test {
+            assertEquals(ApiResult.Failure(AppError.SessionExpired), caller.call { api.me() })
+            awaitItem()
+        }
+    }
+
+    @Test fun `401 com corpo ilegivel expira a sessao`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(401).setBody("<html>no</html>"))
+        events.expired.test {
+            assertEquals(ApiResult.Failure(AppError.SessionExpired), caller.call { api.me() })
+            awaitItem()
+        }
+    }
+
+    @Test fun `401 invalid_password e erro de formulario sem evento`() = runTest {
+        enqueueError(401, "invalid_password", "Senha atual incorreta.")
+        events.expired.test {
+            val result = caller.call { api.me() }
+            assertEquals(
+                ApiResult.Failure(AppError.Api("invalid_password", "Senha atual incorreta.", emptyMap())),
+                result,
+            )
+            expectNoEvents()
+        }
+    }
+
+    @Test fun `codigo de sessao e comparado sem diferenciar maiusculas`() = runTest {
+        enqueueError(401, "SESSION_REVOKED", "Sessão encerrada.")
+        events.expired.test {
+            assertEquals(ApiResult.Failure(AppError.SessionExpired), caller.call { api.me() })
+            awaitItem()
+        }
+    }
+
+    @Test fun `500 sem corpo continua Unknown sem evento`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(500))
+        events.expired.test {
+            assertEquals(ApiResult.Failure(AppError.Unknown), caller.call { api.me() })
+            expectNoEvents()
+        }
+    }
+
+    @Test fun `cancelamento propaga`() = runTest {
+        assertThrows(CancellationException::class.java) {
+            kotlinx.coroutines.runBlocking { caller.call<Unit> { throw CancellationException("x") } }
+        }
     }
 }
