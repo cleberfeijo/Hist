@@ -16,7 +16,8 @@ sealed interface SocketEvent {
 }
 
 interface ChatConnection {
-    /** Emite Opened, Text*, e um único Closed ou Failure; depois completa. Um coletor por conexão. */
+    /** Emite Opened, Text*, e um único Closed ou Failure; depois completa. Um coletor por conexão.
+     * Quem abandona uma conexão deve sempre chamar [close], senão o socket fica aberto. */
     val events: Flow<SocketEvent>
     fun send(text: String): Boolean
     fun close(code: Int = 1000, reason: String = "")

@@ -22,20 +22,19 @@ class OkHttpChatSocketFactory(
     @Inject constructor(client: OkHttpClient) : this(client, BuildConfig.API_BASE_URL)
 
     override fun connect(landmarkId: String, token: String, at: GeoPoint): ChatConnection =
-        OkHttpChatConnection(client, buildChatUrl(baseUrl, landmarkId, token, at))
+        OkHttpChatConnection(client, buildChatUrl(baseUrl, landmarkId, at), token)
 }
 
-internal fun buildChatUrl(baseUrl: String, landmarkId: String, token: String, at: GeoPoint): String {
+internal fun buildChatUrl(baseUrl: String, landmarkId: String, at: GeoPoint): String {
     val base = when {
         baseUrl.startsWith("https://") -> "wss://" + baseUrl.removePrefix("https://")
         baseUrl.startsWith("http://") -> "ws://" + baseUrl.removePrefix("http://")
         else -> baseUrl
     }.let { if (it.endsWith("/")) it else "$it/" }
     val id = URLEncoder.encode(landmarkId, "UTF-8").replace("+", "%20")
-    val t = URLEncoder.encode(token, "UTF-8").replace("+", "%20")
     val lat = plain(at.latitude)
     val lon = plain(at.longitude)
-    return "${base}chat/$id?token=$t&lat=$lat&lon=$lon"
+    return "${base}chat/$id?lat=$lat&lon=$lon"
 }
 
 /** Decimal com ponto e sem notação científica, independente do locale. */
@@ -45,14 +44,15 @@ private fun plain(v: Double): String = BigDecimal.valueOf(v).toPlainString()
  * O WebSocket é aberto já no construtor; os eventos vão para um `Channel.UNLIMITED`,
  * então nada se perde antes de o coletor se inscrever (e por isso só há um coletor).
  */
-private class OkHttpChatConnection(client: OkHttpClient, url: String) : ChatConnection {
+private class OkHttpChatConnection(client: OkHttpClient, url: String, token: String) : ChatConnection {
     private val channel = Channel<SocketEvent>(Channel.UNLIMITED)
     private val terminated = AtomicBoolean(false)
 
     override val events: Flow<SocketEvent> = channel.receiveAsFlow()
 
     private val webSocket: WebSocket = client.newWebSocket(
-        Request.Builder().url(url).build(),
+        // O JWT vai no header (não na URL, para não vazar em logs); header() substitui o do AuthInterceptor.
+        Request.Builder().url(url).header("Authorization", "Bearer $token").build(),
         object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 channel.trySend(SocketEvent.Opened)
@@ -63,8 +63,9 @@ private class OkHttpChatConnection(client: OkHttpClient, url: String) : ChatConn
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                webSocket.close(code, null)
+                // Códigos como 1005/1006 não podem ser enviados; responde 1000 e reporta o código do servidor.
                 terminate(SocketEvent.Closed(code, reason))
+                webSocket.close(1000, null)
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
@@ -87,7 +88,11 @@ private class OkHttpChatConnection(client: OkHttpClient, url: String) : ChatConn
     override fun send(text: String): Boolean = webSocket.send(text)
 
     override fun close(code: Int, reason: String) {
-        webSocket.close(code, reason.ifEmpty { null })
         terminate(SocketEvent.Closed(code, reason))
+        try {
+            webSocket.close(code, reason.ifEmpty { null })
+        } catch (_: IllegalArgumentException) {
+            webSocket.cancel() // código/motivo inválido: o fluxo já terminou; derruba a conexão
+        }
     }
 }

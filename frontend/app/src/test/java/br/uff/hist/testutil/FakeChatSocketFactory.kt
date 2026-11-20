@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 
 class FakeChatSocketFactory : ChatSocketFactory {
+    /** Se false, a próxima conexão falha na abertura: emite só Failure, sem Opened. */
+    var nextOpens: Boolean = true
+
     data class Connect(val landmarkId: String, val token: String, val point: GeoPoint)
 
     val connects = mutableListOf<Connect>()
@@ -19,11 +22,11 @@ class FakeChatSocketFactory : ChatSocketFactory {
 
     override fun connect(landmarkId: String, token: String, at: GeoPoint): ChatConnection {
         connects += Connect(landmarkId, token, at)
-        return FakeChatConnection().also { connections += it }
+        return FakeChatConnection(opens = nextOpens).also { connections += it; nextOpens = true }
     }
 }
 
-class FakeChatConnection : ChatConnection {
+class FakeChatConnection(opens: Boolean = true) : ChatConnection {
     private val channel = Channel<SocketEvent>(Channel.UNLIMITED)
     private var done = false
 
@@ -31,7 +34,9 @@ class FakeChatConnection : ChatConnection {
     var closedByClient: Int? = null
         private set
 
-    init { channel.trySend(SocketEvent.Opened) }
+    init {
+        if (opens) channel.trySend(SocketEvent.Opened) else fail()
+    }
 
     override val events: Flow<SocketEvent> = channel.receiveAsFlow()
 
