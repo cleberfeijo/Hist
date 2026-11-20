@@ -32,10 +32,13 @@ class FakeAccountApi : HistApi by unsupportedApi() {
     var updateHandler: suspend (UpdateMeRequest) -> UserDto = { UserDto("1", it.name ?: "Ana", it.lastName ?: "Silva", it.email ?: "ana@x.com", listOf("user")) }
     var passwordHandler: suspend (ChangePasswordRequest) -> TokenResponseDto = { tokenResponse("novo") }
     var deleteMeHandler: suspend (PasswordBody) -> Response<Unit> = { Response.success(Unit) }
+    var meHandler: suspend () -> UserDto = { UserDto("1", "Ana", "Silva", "ana@x.com", listOf("user")) }
     var changePasswordCalls = 0
     var deleteMeCalls = 0
     var updateCalls = 0
     var lastUpdate: UpdateMeRequest? = null
+
+    override suspend fun me(): UserDto = meHandler()
 
     override suspend fun myLandmarks(status: String?, page: Int, pageSize: Int): PageDto<LandmarkDto> {
         landmarkPageCalls += page

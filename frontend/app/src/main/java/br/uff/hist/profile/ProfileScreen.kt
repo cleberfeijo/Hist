@@ -13,6 +13,8 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -28,7 +30,10 @@ fun ProfileScreen(
     onModeration: () -> Unit,
     onSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: ProfileViewModel = hiltViewModel(),
 ) {
+    // Papéis podem mudar no servidor (ex.: promoção a moderador); falhas são ignoradas.
+    LaunchedEffect(Unit) { viewModel.refresh() }
     if (user == null) return
     ProfileContent(user, onMyContributions, onModeration, onSettings, modifier)
 }

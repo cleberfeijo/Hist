@@ -109,7 +109,7 @@ fun MyContributionsContent(
                 Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.contrib_tab_curiosities)) })
             }
             if (tab == 0) {
-                ContributionList(state.landmarks, onLoadMoreLandmarks) { landmark ->
+                ContributionList(state.landmarks, { it.id }, onLoadMoreLandmarks) { landmark ->
                     ContributionRow(
                         title = landmark.name,
                         subtitle = null,
@@ -119,7 +119,7 @@ fun MyContributionsContent(
                     )
                 }
             } else {
-                ContributionList(state.curiosities, onLoadMoreCuriosities) { curiosity ->
+                ContributionList(state.curiosities, { it.id }, onLoadMoreCuriosities) { curiosity ->
                     ContributionRow(
                         title = curiosity.text,
                         subtitle = curiosity.landmarkName,
@@ -150,6 +150,7 @@ private val <T> ListState<T>.isInitialLoading get() = items.isEmpty() && !loaded
 @Composable
 private fun <T> ContributionList(
     list: ListState<T>,
+    key: (T) -> String,
     onLoadMore: () -> Unit,
     row: @Composable (T) -> Unit,
 ) {
@@ -164,7 +165,7 @@ private fun <T> ContributionList(
             )
         }
         else -> LazyColumn(Modifier.fillMaxSize()) {
-            items(list.items) { item ->
+            items(list.items, key = key) { item ->
                 row(item)
                 HorizontalDivider()
             }
@@ -173,7 +174,7 @@ private fun <T> ContributionList(
                     if (list.failed) {
                         TextButton(onClick = onLoadMore, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.retry)) }
                     } else {
-                        LaunchedEffect(list.items.size) { onLoadMore() }
+                        LaunchedEffect(list.pages) { onLoadMore() }
                     }
                 }
             }

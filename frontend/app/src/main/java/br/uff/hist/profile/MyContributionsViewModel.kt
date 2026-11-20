@@ -28,6 +28,8 @@ data class ListState<T>(
     val failed: Boolean = false,
     /** Evita mostrar o estado vazio enquanto a primeira página ainda carrega. */
     val loaded: Boolean = false,
+    /** Páginas já recebidas; a tela usa como chave para pedir a próxima mesmo quando a página só trouxe duplicados. */
+    val pages: Int = 0,
 )
 
 sealed interface DeleteTarget {
@@ -69,6 +71,7 @@ private class PagedLoader<T>(
                             items = (it.items + result.value.items).distinctBy(id),
                             hasMore = more,
                             loaded = true,
+                            pages = it.pages + 1,
                         )
                     }
                 }

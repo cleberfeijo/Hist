@@ -121,6 +121,25 @@ class MyContributionsViewModelTest {
         assertEquals(listOf(1), api.curiosityPageCalls)
     }
 
+    @Test fun `pagina so com duplicados ainda avanca para a proxima`() = runTest(dispatcher) {
+        api.landmarkPages = mapOf(
+            1 to PageDto(listOf(landmarkDto("a"), landmarkDto("b")), 6, 1, 2),
+            2 to PageDto(listOf(landmarkDto("a"), landmarkDto("b")), 6, 2, 2),
+            3 to PageDto(listOf(landmarkDto("c")), 6, 3, 2),
+        )
+        val vm = vm()
+        advanceUntilIdle()
+        val before = vm.uiState.value.landmarks.pages
+        vm.loadMoreLandmarks()
+        advanceUntilIdle()
+        assertEquals(2, vm.uiState.value.landmarks.items.size)
+        assertTrue(vm.uiState.value.landmarks.pages > before) // sinaliza a tela a pedir a proxima
+        vm.loadMoreLandmarks()
+        advanceUntilIdle()
+        assertEquals(listOf(1, 2, 3), api.landmarkPageCalls)
+        assertEquals(listOf("a", "b", "c"), vm.uiState.value.landmarks.items.map { it.id })
+    }
+
     @Test fun `falha na carga marca failed e retry recarrega`() = runTest(dispatcher) {
         api.landmarkPages = emptyMap() // getValue lanca NoSuchElementException -> Unknown
         val vm = vm()

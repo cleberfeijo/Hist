@@ -78,7 +78,7 @@ class SettingsViewModelTest {
     }
 
     @Test fun `invalid_password ao excluir conta vira erro de campo e a sessao fica`() = runTest(dispatcher) {
-        api.deleteMeHandler = { throw httpError(400, "invalid_password", "Senha incorreta.") }
+        api.deleteMeHandler = { throw httpError(401, "invalid_password", "Senha incorreta.") }
         val vm = vm()
         vm.openDialog(SettingsDialog.DELETE_ACCOUNT)
         vm.onCurrentPassword("errada123")
@@ -88,6 +88,29 @@ class SettingsViewModelTest {
         assertNotNull(store.session.value)
         assertEquals(SettingsDialog.DELETE_ACCOUNT, vm.uiState.value.dialog)
         assertFalse(vm.uiState.value.submitting)
+    }
+
+    @Test fun `chave password do servidor vira erro em Senha atual`() = runTest(dispatcher) {
+        api.deleteMeHandler = {
+            throw httpError(422, "validation_error", "Inválido.", """[{"field":"password","message":"obrigatória"}]""")
+        }
+        val vm = vm()
+        vm.openDialog(SettingsDialog.DELETE_ACCOUNT)
+        vm.onCurrentPassword("x")
+        vm.submit()
+        advanceUntilIdle()
+        assertEquals("obrigatória", vm.uiState.value.form.fieldErrors[SettingsFields.CURRENT_PASSWORD])
+        assertNull(vm.uiState.value.form.error)
+    }
+
+    @Test fun `toque duplo em excluir conta faz uma so chamada`() = runTest(dispatcher) {
+        val vm = vm()
+        vm.openDialog(SettingsDialog.DELETE_ACCOUNT)
+        vm.onCurrentPassword("senha1234")
+        vm.submit()
+        vm.submit()
+        advanceUntilIdle()
+        assertEquals(1, api.deleteMeCalls)
     }
 
     @Test fun `excluir conta com sucesso limpa a sessao`() = runTest(dispatcher) {
