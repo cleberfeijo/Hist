@@ -60,7 +60,10 @@ class SuggestLandmarkViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val initial = (location.current(LocationPriority.BALANCED) ?: location.lastKnown())?.point ?: RIO_DAS_OSTRAS
+            // Sem permissão pula direto para a última posição conhecida/fallback.
+            val fix = (if (location.hasPermission()) location.current(LocationPriority.BALANCED) else null)
+                ?: location.lastKnown()
+            val initial = fix?.point ?: RIO_DAS_OSTRAS
             _uiState.update { if (it.pin == null) it.copy(pin = initial) else it }
         }
     }

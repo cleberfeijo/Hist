@@ -35,4 +35,19 @@ class SuggestLandmarkContentTest {
         show(SuggestLandmarkUiState(pin = GeoPoint(0.0, 0.0), submitting = true))
         compose.onNodeWithText("Enviar sugestão").assertIsNotEnabled()
     }
+
+    @Test fun `erro de nome aparece`() {
+        show(SuggestLandmarkUiState(pin = RIO_DAS_OSTRAS, fieldErrors = mapOf("name" to "O nome precisa ter entre 2 e 200 caracteres.")))
+        compose.onNodeWithText("O nome precisa ter entre 2 e 200 caracteres.").assertExists()
+    }
+
+    @Test fun `erro geral aparece`() {
+        show(SuggestLandmarkUiState(pin = RIO_DAS_OSTRAS, error = "fora do intervalo"))
+        compose.onNodeWithText("fora do intervalo").assertExists()
+    }
+
+    @Test fun `botao fica desabilitado sem pino`() {
+        show(SuggestLandmarkUiState(pin = null))
+        compose.onNodeWithText("Enviar sugestão").assertIsNotEnabled()
+    }
 }

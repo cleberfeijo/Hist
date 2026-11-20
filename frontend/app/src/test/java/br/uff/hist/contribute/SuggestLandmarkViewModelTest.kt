@@ -74,6 +74,7 @@ class SuggestLandmarkViewModelTest {
         location.setPermission(false)
         val v = vm()
         assertEquals(RIO_DAS_OSTRAS, v.uiState.value.pin)
+        assertEquals(0, location.currentCalls)
     }
 
     @Test fun `nome curto da erro local sem chamada`() = runTest {

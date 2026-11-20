@@ -1,7 +1,12 @@
 package br.uff.hist.contribute
 
 import android.widget.Toast
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -61,6 +66,7 @@ import kotlinx.coroutines.flow.filter
 
 private const val MAP_ZOOM = 16f
 private val MapHeight = 260.dp
+private val CollapsedMapHeight = 72.dp
 private val PinSize = 40.dp
 
 @Composable
@@ -99,7 +105,7 @@ fun SuggestLandmarkScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun SuggestLandmarkContent(
     state: SuggestLandmarkUiState,
@@ -126,9 +132,11 @@ internal fun SuggestLandmarkContent(
             )
         },
     ) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
+        // Com o teclado aberto o mapa encolhe para uma faixa (continua composto: câmera e pino se mantêm).
+        val mapHeight by animateDpAsState(if (WindowInsets.isImeVisible) CollapsedMapHeight else MapHeight, label = "mapHeight")
+        Column(Modifier.padding(padding).imePadding().fillMaxSize()) {
             // O mapa fica fora da rolagem do formulário: arrastar o mapa não pode rolar a tela.
-            Box(Modifier.fillMaxWidth().height(MapHeight)) {
+            Box(Modifier.fillMaxWidth().height(mapHeight)) {
                 mapContent(Modifier.fillMaxSize())
                 Icon(
                     Icons.Filled.Place,
