@@ -201,6 +201,25 @@ class ChatSessionTest {
         assertNull(state.notice)
     }
 
+    @Test fun serverErrorBeforeCloseDoesNotLeaveNotice() = chatTest {
+        active()
+        conn.serverSend(serverError("out_of_range", "Você saiu do raio"))
+        conn.serverClose(CLOSE_OUT_OF_RANGE)
+        run()
+        assertEquals(ChatPhase.Ended(EndReason.OUT_OF_RANGE), state.phase)
+        assertNull(state.notice)
+    }
+
+    @Test fun noticeIsCutAtTwoHundredCodePoints() = chatTest {
+        active()
+        conn.serverSend(serverError("rate_limited", "a".repeat(199) + "👍" + "b".repeat(10)))
+        run()
+        assertEquals("a".repeat(199) + "👍", state.notice)
+        conn.serverSend(serverError("rate_limited", "😀".repeat(250)))
+        run()
+        assertEquals("😀".repeat(200), state.notice)
+    }
+
     // --- Durante Active ---
 
     @Test fun warnsWhenBeyondJoinRadius() = chatTest {
@@ -306,8 +325,44 @@ class ChatSessionTest {
         location.currentResult = fix(250.0)
         conn.fail()
         run()
+        assertEquals(ChatPhase.Reconnecting, state.phase) // a checagem vem depois da espera
+        advance(1_000)
         assertEquals(ChatPhase.Ended(EndReason.OUT_OF_RANGE), state.phase)
         advance(60_000)
+        assertEquals(1, factory.connectCount)
+    }
+
+    @Test fun reconnectUsesFixTakenAfterBackoff() = chatTest {
+        active()
+        location.currentResult = fix(250.0) // fora do raio só durante a espera
+        conn.serverClose(1001)
+        run()
+        advance(999)
+        location.currentResult = fix(70.0)
+        advance(1)
+        assertEquals(at(70.0), factory.connects.last().point)
+        assertEquals(2, factory.connectCount)
+    }
+
+    @Test fun reconnectWithoutFixKeepsBackingOff() = chatTest {
+        active()
+        location.currentResult = null
+        conn.serverClose(1001)
+        run()
+        advance(1_000 + 2_000 + 3_999)
+        assertEquals(1, factory.connectCount)
+        assertEquals(ChatPhase.Reconnecting, state.phase)
+        location.currentResult = fix(60.0)
+        advance(1) // 3ª espera (4 s) termina com fix
+        assertEquals(2, factory.connectCount)
+    }
+
+    @Test fun mockFixAtReconnectEnds() = chatTest {
+        active()
+        location.currentResult = fix(50.0, mock = true)
+        conn.serverClose(1001)
+        advance(1_000)
+        assertEquals(ChatPhase.Ended(EndReason.MOCK_LOCATION), state.phase)
         assertEquals(1, factory.connectCount)
     }
 
@@ -507,6 +562,37 @@ class ChatSessionTest {
         conn.serverSend(welcome())
         advance(5 * 60_000) // timer cancelado ao voltar
         assertEquals(ChatPhase.Active, state.phase)
+    }
+
+    @Test fun mockFixOnResumeEnds() = chatTest {
+        active()
+        session.onAppBackground()
+        run()
+        location.currentResult = fix(50.0, mock = true)
+        session.onAppForeground()
+        run()
+        assertEquals(ChatPhase.Ended(EndReason.MOCK_LOCATION), state.phase)
+        assertEquals(1000, conn.closedByClient)
+    }
+
+    @Test fun foregroundWhileConnectingDropsStaleBuffer() = chatTest {
+        session.start()
+        run()
+        session.onAppBackground()
+        run()
+        conn.serverSend(message("m0", "u2", "Bia", "antes do welcome"))
+        run()
+        session.onAppForeground()
+        run()
+        conn.serverSend(welcome())
+        run()
+        assertEquals(ChatPhase.Active, state.phase)
+        session.onAppBackground()
+        run()
+        session.onAppForeground()
+        run()
+        assertEquals(ChatPhase.Active, state.phase)
+        assertTrue(state.items.isEmpty())
     }
 
     // --- Permissão de localização ---

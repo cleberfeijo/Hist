@@ -89,9 +89,11 @@ private const val CLOSE_NORMAL = 1000
  * - Voltando ao app ainda em `Connecting` (sem `welcome`, nada guardado), só cancela o timer e retoma.
  *   Já em `Paused`, o timer só é cancelado quando o fix novo chega; até lá ele ainda vale.
  * - Só `welcome` torna a sessão `Active`. Conexão que termina antes do `welcome` conta como tentativa
- *   falha (o backoff continua); `welcome` zera o backoff. A tentativa k espera `backoffMs[min(k, último)]`,
- *   depois de checar `current(HIGH)`: fix nulo → tenta de novo na próxima espera; mock → `MOCK_LOCATION`;
- *   além de `joinRadiusM` → `OUT_OF_RANGE`.
+ *   falha (o backoff continua); `welcome` zera o backoff. A tentativa k primeiro espera
+ *   `backoffMs[min(k, último)]` e só então lê `current(HIGH)` (R17: nunca conecta com posição velha):
+ *   fix nulo → próxima espera; mock → `MOCK_LOCATION`; além de `joinRadiusM` → `OUT_OF_RANGE`;
+ *   senão conecta com esse fix.
+ * - `notice` é cortado em 200 code points e limpo em qualquer `Ended`.
  * - Sem token salvo ao conectar → `notifyExpired()` + `SESSION_EXPIRED` (mesmo tratamento do `4401`).
  */
 class ChatSession(
@@ -133,8 +135,7 @@ class ChatSession(
         data class PingTick(val token: Int) : Input
         data class BackgroundTimeout(val token: Int) : Input
         data class ForegroundFix(val token: Int, val fix: LocationFix?) : Input
-        data class ReconnectChecked(val token: Int, val fix: LocationFix?) : Input
-        data class ReconnectDue(val token: Int, val fix: LocationFix?) : Input
+        data class ReconnectReady(val token: Int, val fix: LocationFix?) : Input
     }
 
     private val inbox = Channel<Input>(Channel.UNLIMITED)
@@ -224,8 +225,7 @@ class ChatSession(
             is Input.PingTick -> if (input.token == trackToken) conn?.send(encodePing())
             is Input.BackgroundTimeout -> if (input.token == timerToken) end(EndReason.BACKGROUND_TIMEOUT)
             is Input.ForegroundFix -> if (input.token == foregroundToken) onForegroundFix(input.fix)
-            is Input.ReconnectChecked -> if (input.token == reconnectToken) onReconnectChecked(input.fix)
-            is Input.ReconnectDue -> if (input.token == reconnectToken) onReconnectDue(input.fix)
+            is Input.ReconnectReady -> if (input.token == reconnectToken) onReconnectReady(input.fix)
         }
     }
 
@@ -304,7 +304,7 @@ class ChatSession(
                 val note = ChatItem.PresenceNote("p:${++presenceSeq}", event.user.name, event.joined)
                 _state.update { it.copy(items = it.items + note, memberCount = event.memberCount ?: it.memberCount) }
             }
-            is ServerEvent.Error -> _state.update { it.copy(notice = event.message.take(MAX_NOTICE_LENGTH)) }
+            is ServerEvent.Error -> _state.update { it.copy(notice = event.message.takeCodePoints(MAX_NOTICE_LENGTH)) }
             ServerEvent.Pong -> Unit
         }
     }
@@ -404,25 +404,20 @@ class ChatSession(
         val token = newToken()
         reconnectToken = token
         reconnectJob = scope.launch {
-            val fix = location.current(LocationPriority.HIGH)
-            post(Input.ReconnectChecked(token, fix))
             delay(waitMs)
-            post(Input.ReconnectDue(token, fix))
+            post(Input.ReconnectReady(token, location.current(LocationPriority.HIGH)))
         }
     }
 
-    private fun onReconnectChecked(fix: LocationFix?) {
-        if (fix == null) return // posição desconhecida: tenta de novo depois da espera
-        if (fix.isMock) return end(EndReason.MOCK_LOCATION)
-        if (updateDistance(fix.point) > _state.value.joinRadiusM) end(EndReason.OUT_OF_RANGE)
-    }
-
-    private fun onReconnectDue(fix: LocationFix?) {
+    /** Depois da espera: checa o fix novo e conecta com ele (R17). */
+    private fun onReconnectReady(fix: LocationFix?) {
         reconnectToken = 0
         reconnectJob = null
         when {
-            fix == null -> scheduleReconnect()
             !location.hasPermission() -> end(EndReason.NO_LOCATION_PERMISSION)
+            fix == null -> scheduleReconnect() // posição desconhecida: próxima espera
+            fix.isMock -> end(EndReason.MOCK_LOCATION)
+            updateDistance(fix.point) > _state.value.joinRadiusM -> end(EndReason.OUT_OF_RANGE)
             else -> connect(fix.point)
         }
     }
@@ -469,8 +464,9 @@ class ChatSession(
         if (!inBackground || foregroundToken != 0) return
         if (!location.hasPermission()) return end(EndReason.NO_LOCATION_PERMISSION)
         if (!paused) {
-            // ainda em Connecting: nada foi exibido nem guardado
+            // ainda em Connecting, sem `welcome`: o que chegou antes dele não é exibido nem guardado
             inBackground = false
+            buffer.clear()
             cancelTimer()
             if (pendingReconnect) {
                 pendingReconnect = false
@@ -522,9 +518,14 @@ class ChatSession(
         conn?.close(CLOSE_NORMAL)
         conn = null
         buffer.clear()
-        _state.update { it.copy(phase = ChatPhase.Ended(reason), items = emptyList()) }
+        // o servidor manda `error` antes de 4400/4401/4403/4404: a saída tem mensagem própria
+        _state.update { it.copy(phase = ChatPhase.Ended(reason), items = emptyList(), notice = null) }
         inbox.close()
     }
 
     private fun setPhase(phase: ChatPhase) = _state.update { it.copy(phase = phase) }
 }
+
+/** Os primeiros [n] code points (não parte pares substitutos, p.ex. emojis). */
+private fun String.takeCodePoints(n: Int): String =
+    if (codePointCount(0, length) <= n) this else substring(0, offsetByCodePoints(0, n))
