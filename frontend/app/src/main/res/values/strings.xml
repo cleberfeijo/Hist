@@ -5,4 +5,13 @@
     <string name="status_approved">Aprovado</string>
     <string name="status_rejected">Rejeitado</string>
     <string name="retry">Tentar de novo</string>
+    <string name="cat_igreja">Igreja / templo</string>
+    <string name="cat_museu">Museu</string>
+    <string name="cat_monumento">Monumento / marco</string>
+    <string name="cat_edificio_historico">Casa / edifício histórico</string>
+    <string name="cat_praca">Praça / largo</string>
+    <string name="cat_fortificacao">Fortificação</string>
+    <string name="cat_sitio_arqueologico">Sítio arqueológico</string>
+    <string name="cat_ferrovia">Estação / ferrovia</string>
+    <string name="cat_outro">Outro</string>
 </resources>
