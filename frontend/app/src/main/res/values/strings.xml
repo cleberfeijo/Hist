@@ -37,4 +37,6 @@
     <string name="tab_profile">Perfil</string>
     <string name="placeholder_soon">Em breve</string>
     <string name="onboarding_continue">Continuar</string>
+    <string name="onboarding_title">Descubra a história ao seu redor</string>
+    <string name="onboarding_body">O Hist usa sua localização para mostrar os pontos históricos perto de você e liberar o chat de cada lugar quando você estiver a até 200 m. A localização só é usada com o app aberto.</string>
 </resources>

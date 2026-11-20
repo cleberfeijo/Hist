@@ -15,6 +15,7 @@ import androidx.navigation.NavDestination.Companion.hasRoute
 import br.uff.hist.auth.LoginScreen
 import br.uff.hist.auth.RegisterScreen
 import br.uff.hist.core.designsystem.components.LoadingState
+import br.uff.hist.onboarding.LocationOnboardingScreen
 import kotlinx.coroutines.launch
 
 @Composable
@@ -51,7 +52,7 @@ fun HistNavHost(modifier: Modifier = Modifier, viewModel: RootViewModel = hiltVi
             RegisterScreen(onRegistered = enterApp, onBackToLogin = { navController.popBackStack() })
         }
         composable<LocationOnboarding> {
-            LocationOnboardingPlaceholder(onContinue = {
+            LocationOnboardingScreen(onDone = {
                 viewModel.finishLocationOnboarding()
                 navController.navigateClearingStack(Main)
             })
