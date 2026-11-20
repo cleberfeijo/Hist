@@ -2,6 +2,7 @@ package br.uff.hist.landmark
 
 import android.Manifest
 import android.text.format.DateUtils
+import androidx.annotation.StringRes
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -25,6 +26,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -62,6 +65,8 @@ fun LandmarkDetailScreen(
     onBack: () -> Unit,
     onEnterChat: (String) -> Unit,
     modifier: Modifier = Modifier,
+    @StringRes endMessage: Int? = null,
+    onEndMessageShown: () -> Unit = {},
     viewModel: LandmarkDetailViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -75,22 +80,32 @@ fun LandmarkDetailScreen(
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         viewModel.onPermissionResult(result.values.any { it })
     }
-    LandmarkDetailContent(
-        state = state,
-        errorMessage = state.error?.let { messages.of(it) },
-        onBack = onBack,
-        onEnterChat = { state.landmark?.let { onEnterChat(it.id) } },
-        onEnableLocation = {
-            permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
-        },
-        onRetry = viewModel::retry,
-        onLoadMore = viewModel::loadMore,
-        onOpenSuggestion = viewModel::openSuggestion,
-        onSuggestionText = viewModel::onSuggestionText,
-        onSubmitSuggestion = viewModel::submitSuggestion,
-        onDismissSuggestion = viewModel::dismissSuggestion,
-        modifier = modifier,
-    )
+    val snackbar = remember { SnackbarHostState() }
+    LaunchedEffect(endMessage) {
+        if (endMessage != null) {
+            val text = context.getString(endMessage)
+            onEndMessageShown()
+            snackbar.showSnackbar(text)
+        }
+    }
+    Box(modifier) {
+        LandmarkDetailContent(
+            state = state,
+            errorMessage = state.error?.let { messages.of(it) },
+            onBack = onBack,
+            onEnterChat = { state.landmark?.let { onEnterChat(it.id) } },
+            onEnableLocation = {
+                permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+            },
+            onRetry = viewModel::retry,
+            onLoadMore = viewModel::loadMore,
+            onOpenSuggestion = viewModel::openSuggestion,
+            onSuggestionText = viewModel::onSuggestionText,
+            onSubmitSuggestion = viewModel::submitSuggestion,
+            onDismissSuggestion = viewModel::dismissSuggestion,
+        )
+        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
+    }
 }
 
 @Composable

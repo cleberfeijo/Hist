@@ -4,6 +4,7 @@ import br.uff.hist.BuildConfig
 import br.uff.hist.core.model.GeoPoint
 import java.net.URLEncoder
 import java.math.BigDecimal
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
@@ -15,11 +16,18 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 
+/** Mantém o socket vivo atrás de NATs ociosos durante a janela de 5 min em segundo plano. */
+private const val CHAT_PING_INTERVAL_S = 20L
+
 class OkHttpChatSocketFactory(
-    private val client: OkHttpClient,
+    internal val client: OkHttpClient,
     private val baseUrl: String,
 ) : ChatSocketFactory {
-    @Inject constructor(client: OkHttpClient) : this(client, BuildConfig.API_BASE_URL)
+    /** Deriva do cliente compartilhado (mesmo pool e interceptors) só para ajustar o ping do WebSocket. */
+    @Inject constructor(client: OkHttpClient) : this(
+        client.newBuilder().pingInterval(CHAT_PING_INTERVAL_S, TimeUnit.SECONDS).build(),
+        BuildConfig.API_BASE_URL,
+    )
 
     override fun connect(landmarkId: String, token: String, at: GeoPoint): ChatConnection =
         OkHttpChatConnection(client, buildChatUrl(baseUrl, landmarkId, at), token)

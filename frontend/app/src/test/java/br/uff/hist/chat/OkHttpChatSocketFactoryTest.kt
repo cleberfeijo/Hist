@@ -152,3 +152,12 @@ class OkHttpChatSocketFactoryTest {
         )
     }
 }
+
+class OkHttpChatSocketFactoryClientTest {
+    @Test fun `o cliente injetado usa ping de 20 s sem alterar o cliente compartilhado`() {
+        val shared = OkHttpClient()
+        val factory = OkHttpChatSocketFactory(shared)
+        assertEquals(20_000, factory.client.pingIntervalMillis)
+        assertEquals(0, shared.pingIntervalMillis)
+    }
+}

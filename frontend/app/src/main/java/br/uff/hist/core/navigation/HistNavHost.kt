@@ -14,10 +14,14 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavDestination.Companion.hasRoute
 import br.uff.hist.auth.LoginScreen
 import br.uff.hist.auth.RegisterScreen
+import br.uff.hist.chat.ChatScreen
 import br.uff.hist.core.designsystem.components.LoadingState
 import br.uff.hist.landmark.LandmarkDetailScreen
 import br.uff.hist.onboarding.LocationOnboardingScreen
 import kotlinx.coroutines.launch
+
+/** Chave no `savedStateHandle` do detalhe com o texto (string res) de encerramento do chat; consumido uma vez. */
+private const val CHAT_END_MESSAGE_KEY = "chat_end_message"
 
 @Composable
 fun HistNavHost(modifier: Modifier = Modifier, viewModel: RootViewModel = hiltViewModel()) {
@@ -64,13 +68,25 @@ fun HistNavHost(modifier: Modifier = Modifier, viewModel: RootViewModel = hiltVi
                 onSuggestLandmark = { navController.navigate(SuggestLandmark) },
             )
         }
-        composable<LandmarkDetail> {
+        composable<LandmarkDetail> { entry ->
+            val handle = entry.savedStateHandle
+            val endMessage by handle.getStateFlow<Int?>(CHAT_END_MESSAGE_KEY, null).collectAsStateWithLifecycle()
             LandmarkDetailScreen(
                 onBack = { navController.popBackStack() },
                 onEnterChat = { navController.navigate(Chat(it)) },
+                endMessage = endMessage,
+                onEndMessageShown = { handle[CHAT_END_MESSAGE_KEY] = null },
             )
         }
-        composable<Chat> { PlaceholderScreen() }
+        composable<Chat> {
+            ChatScreen(onClose = { message ->
+                // Sair e o fim da conversa chegam em sequência: só o primeiro encontra o Chat no topo.
+                if (navController.currentBackStackEntry?.destination?.hasRoute<Chat>() == true) {
+                    navController.previousBackStackEntry?.savedStateHandle?.set(CHAT_END_MESSAGE_KEY, message)
+                    navController.popBackStack()
+                }
+            })
+        }
         composable<SuggestLandmark> { PlaceholderScreen() }
         composable<MyContributions> { PlaceholderScreen() }
         composable<Settings> { PlaceholderScreen() }

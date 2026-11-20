@@ -74,4 +74,19 @@
     <string name="image_credit">Foto: %1$s · %2$s</string>
     <string name="image_credit_no_license">Foto: %1$s</string>
     <string name="curiosity_source">Fonte: %1$s</string>
+    <string name="chat_ephemeral_notice">As mensagens só existem enquanto você estiver aqui. Ao sair do local, a conversa some.</string>
+    <plurals name="chat_member_count">
+        <item quantity="one">%d pessoa aqui agora</item>
+        <item quantity="other">%d pessoas aqui agora</item>
+    </plurals>
+    <string name="chat_presence_joined">%1$s entrou</string>
+    <string name="chat_presence_left">%1$s saiu</string>
+    <string name="chat_leaving_warning">Você está se afastando (%1$d m). A partir de %2$d m você sai do chat.</string>
+    <string name="chat_out_of_range">Você saiu da área do ponto. A conversa foi encerrada.</string>
+    <string name="chat_background_timeout">A conversa foi encerrada porque você ficou fora do app</string>
+    <string name="chat_not_found">Este ponto não está mais disponível.</string>
+    <string name="chat_reconnecting">Reconectando…</string>
+    <string name="chat_message_hint">Mensagem</string>
+    <string name="chat_send">Enviar</string>
+    <string name="chat_counter">%1$d/%2$d</string>
 </resources>
