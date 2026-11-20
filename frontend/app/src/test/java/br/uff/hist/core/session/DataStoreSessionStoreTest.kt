@@ -4,7 +4,16 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import br.uff.hist.core.designsystem.ThemePreference
 import br.uff.hist.core.model.Role
 import br.uff.hist.core.model.User
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
 import java.io.File
+import java.io.IOException
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -89,6 +98,80 @@ class DataStoreSessionStoreTest {
     @Test fun `replaceToken sem sessao nao cria sessao`() = runTest {
         val store = newStore()
         store.replaceToken("x")
+        assertNull(store.session.value)
+    }
+
+    @Test fun `replaceToken e updateUser apos clear nao ressuscitam a sessao`() = runTest {
+        val store = newStore()
+        store.save(Session("t1", user))
+        store.clear()
+        store.replaceToken("t2")
+        store.updateUser(user.copy(name = "Outro"))
+        assertNull(store.session.value)
+        assertNull(store.currentToken())
+        assertNull(newStore().session.value)
+    }
+
+    @Test fun `save e clear concorrentes terminam e cache bate com o disco`() = runTest {
+        val store = newStore()
+        withContext(Dispatchers.Default) {
+            withTimeout(10_000) {
+                repeat(50) { i ->
+                    listOf(
+                        launch { store.save(Session("t$i", user)) },
+                        launch { store.clear() },
+                        launch { store.replaceToken("r$i") },
+                    ).joinAll()
+                }
+            }
+        }
+        val inMemory = store.session.value
+        assertEquals(inMemory, newStore().session.value)
+    }
+
+    @Test fun `tema e onboarding persistem em nova instancia`() = runTest {
+        val store = newStore()
+        store.setTheme(ThemePreference.LIGHT)
+        store.setLocationOnboardingDone()
+        val other = newStore()
+        assertEquals(ThemePreference.LIGHT, other.theme.first())
+        assertEquals(true, other.locationOnboardingDone.first())
+    }
+
+    @Test fun `erro de IO na leitura nao quebra o store`() = runTest {
+        val scope = CoroutineScope(Job() + Dispatchers.IO).also { scopes += it }
+        val broken = object : DataStore<Preferences> {
+            override val data = flow<Preferences> { throw IOException("disco") }
+            override suspend fun updateData(transform: suspend (Preferences) -> Preferences) =
+                transform(emptyPreferences())
+        }
+        val store = DataStoreSessionStore(broken, scope)
+        withTimeout(10_000) { store.awaitLoaded() }
+        assertNull(store.session.value)
+        assertEquals(ThemePreference.SYSTEM, store.theme.first())
+        assertFalse(store.locationOnboardingDone.first())
+        store.save(Session("t1", user))
+        assertEquals("t1", store.currentToken())
+    }
+
+    @Test fun `clear derruba o token da memoria mesmo se a escrita falhar`() = runTest {
+        val scope = CoroutineScope(Job() + Dispatchers.IO).also { scopes += it }
+        var failWrites = false
+        val flaky = object : DataStore<Preferences> {
+            private var current = emptyPreferences()
+            override val data = flow { emit(current) }
+            override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
+                if (failWrites) throw IOException("disco cheio")
+                current = transform(current)
+                return current
+            }
+        }
+        val store = DataStoreSessionStore(flaky, scope)
+        store.save(Session("t1", user))
+        assertEquals("t1", store.currentToken())
+        failWrites = true
+        runCatching { store.clear() }
+        assertNull(store.currentToken())
         assertNull(store.session.value)
     }
 }

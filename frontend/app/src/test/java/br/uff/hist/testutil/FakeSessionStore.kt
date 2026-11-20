@@ -18,6 +18,8 @@ class FakeSessionStore(initial: Session? = null) : SessionStore {
 
     override fun currentToken(): String? = _session.value?.token
 
+    override suspend fun awaitLoaded() = Unit
+
     override suspend fun save(session: Session) { _session.value = session }
     override suspend fun updateUser(user: User) { _session.value = _session.value?.copy(user = user) }
     override suspend fun replaceToken(token: String) { _session.value = _session.value?.copy(token = token) }

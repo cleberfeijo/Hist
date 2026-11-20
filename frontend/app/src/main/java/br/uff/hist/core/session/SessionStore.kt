@@ -13,6 +13,9 @@ interface SessionStore : TokenProvider {
     val theme: Flow<ThemePreference>
     val locationOnboardingDone: Flow<Boolean>
 
+    /** Suspende até a sessão ser lida do disco; antes disso `session == null` ainda não significa deslogado. */
+    suspend fun awaitLoaded()
+
     suspend fun save(session: Session)
     suspend fun updateUser(user: User)
     suspend fun replaceToken(token: String)

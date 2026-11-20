@@ -22,4 +22,22 @@ class SessionExpiryHandlerTest {
 
         assertNull(store.session.value)
     }
+
+    @Test fun `falha no primeiro clear nao derruba o coletor`() = runTest {
+        val fake = FakeSessionStore(Session("t", User("1", "A", "B", "a@b.c", emptySet())))
+        var calls = 0
+        val store = object : SessionStore by fake {
+            override suspend fun clear() {
+                if (calls++ == 0) throw IllegalStateException("disco") else fake.clear()
+            }
+        }
+        val events = SessionEvents()
+        SessionExpiryHandler(events, store, TestScope(UnconfinedTestDispatcher(testScheduler))).start()
+
+        events.notifyExpired()
+        assertNotNull(fake.session.value)
+        events.notifyExpired()
+
+        assertNull(fake.session.value)
+    }
 }
