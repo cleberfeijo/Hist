@@ -89,4 +89,16 @@
     <string name="chat_message_hint">Mensagem</string>
     <string name="chat_send">Enviar</string>
     <string name="chat_counter">%1$d/%2$d</string>
+    <string name="suggest_title">Sugerir ponto</string>
+    <string name="suggest_field_name">Nome do lugar</string>
+    <string name="suggest_field_category">Categoria</string>
+    <string name="suggest_field_description">Descrição (opcional)</string>
+    <string name="suggest_field_curiosity">Uma curiosidade sobre o lugar (opcional)</string>
+    <string name="suggest_submit">Enviar sugestão</string>
+    <string name="suggest_map_hint">Arraste o mapa para posicionar o alfinete</string>
+    <string name="suggest_error_name">O nome precisa ter entre 2 e 200 caracteres.</string>
+    <string name="suggest_error_category">Escolha uma categoria.</string>
+    <string name="suggest_error_description">A descrição pode ter no máximo 5000 caracteres.</string>
+    <string name="suggest_error_curiosity">A curiosidade precisa ter entre 10 e 2000 caracteres.</string>
+    <string name="suggest_done">Recebido! Sua sugestão vai aparecer no mapa depois de aprovada.</string>
 </resources>

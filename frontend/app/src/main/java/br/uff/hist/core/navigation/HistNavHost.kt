@@ -15,6 +15,7 @@ import androidx.navigation.NavDestination.Companion.hasRoute
 import br.uff.hist.auth.LoginScreen
 import br.uff.hist.auth.RegisterScreen
 import br.uff.hist.chat.ChatScreen
+import br.uff.hist.contribute.SuggestLandmarkScreen
 import br.uff.hist.core.designsystem.components.LoadingState
 import br.uff.hist.landmark.LandmarkDetailScreen
 import br.uff.hist.onboarding.LocationOnboardingScreen
@@ -87,7 +88,9 @@ fun HistNavHost(modifier: Modifier = Modifier, viewModel: RootViewModel = hiltVi
                 }
             })
         }
-        composable<SuggestLandmark> { PlaceholderScreen() }
+        composable<SuggestLandmark> {
+            SuggestLandmarkScreen(onBack = { navController.popBackStack() }, onDone = { navController.popBackStack() })
+        }
         composable<MyContributions> { PlaceholderScreen() }
         composable<Settings> { PlaceholderScreen() }
         composable<ModerationQueue> { PlaceholderScreen() }
