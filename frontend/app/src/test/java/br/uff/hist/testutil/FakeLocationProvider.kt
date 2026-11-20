@@ -11,6 +11,8 @@ class FakeLocationProvider(private var permission: Boolean = true) : LocationPro
     private val flow = MutableSharedFlow<LocationFix>(extraBufferCapacity = 16)
 
     var currentResult: LocationFix? = null
+    var currentCalls = 0
+        private set
     var lastKnownResult: LocationFix? = null
 
     fun setPermission(value: Boolean) { permission = value }
@@ -20,6 +22,9 @@ class FakeLocationProvider(private var permission: Boolean = true) : LocationPro
     override fun hasPermission() = permission
     override fun updates(priority: LocationPriority, intervalMs: Long): Flow<LocationFix> =
         if (permission) flow else emptyFlow()
-    override suspend fun current(priority: LocationPriority) = if (permission) currentResult else null
+    override suspend fun current(priority: LocationPriority): LocationFix? {
+        currentCalls++
+        return if (permission) currentResult else null
+    }
     override suspend fun lastKnown() = if (permission) lastKnownResult else null
 }

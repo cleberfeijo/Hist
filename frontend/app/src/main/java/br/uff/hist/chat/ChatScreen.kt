@@ -101,10 +101,12 @@ internal fun ChatContent(
 ) {
     val snackbar = remember { SnackbarHostState() }
     val notice = state.notice
+    val currentOnNoticeShown by rememberUpdatedState(onNoticeShown)
+    // Mostra e só então consome: limpar o aviso antes cancelaria o `showSnackbar` em andamento.
     LaunchedEffect(notice) {
         if (notice != null) {
-            onNoticeShown()
             snackbar.showSnackbar(notice)
+            currentOnNoticeShown()
         }
     }
     Scaffold(

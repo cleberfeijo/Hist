@@ -1,5 +1,8 @@
 package br.uff.hist.chat
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -46,7 +49,7 @@ class ChatContentTest {
         compose.onNodeWithText("aqui agora", substring = true).assertDoesNotExist()
     }
 
-    @Test fun `memberCount 3 e 1 usam o plural certo`() {
+    @Test fun `memberCount 3 usa o plural`() {
         show(chatState(memberCount = 3))
         compose.onNodeWithText("3 pessoas aqui agora").assertExists()
     }
@@ -54,6 +57,7 @@ class ChatContentTest {
     @Test fun `memberCount 1 usa o singular`() {
         show(chatState(memberCount = 1))
         compose.onNodeWithText("1 pessoa aqui agora").assertExists()
+        compose.onNodeWithText("1 pessoas aqui agora").assertDoesNotExist()
     }
 
     @Test fun `aviso efemero sempre presente`() {
@@ -134,12 +138,27 @@ class ChatContentTest {
         compose.onNodeWithText("Enviar").assertIsNotEnabled()
     }
 
-    @Test fun `notice vira snackbar e e consumida`() {
+    @Test fun `notice fica visivel apos ser consumida e so consome depois de mostrar`() {
+        var notice by mutableStateOf<String?>("Devagar!")
         var shown = 0
-        show(chatState(notice = "Devagar!"), onNoticeShown = { shown++ })
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            HistTheme {
+                ChatContent(
+                    state = chatState(notice = notice),
+                    onSend = { SendResult.SENT },
+                    onBack = {},
+                    onNoticeShown = { shown++; notice = null },
+                )
+            }
+        }
+        compose.mainClock.advanceTimeBy(1_000)
         compose.onNodeWithText("Devagar!").assertExists()
+        assertEquals(0, shown)
+
+        compose.mainClock.advanceTimeBy(10_000)
         compose.waitForIdle()
         assertEquals(1, shown)
+        compose.onNodeWithText("Devagar!").assertDoesNotExist()
     }
 }
-

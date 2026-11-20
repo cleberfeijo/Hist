@@ -4,9 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
-import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.CreationExtras
-import kotlinx.coroutines.isActive
 import androidx.test.core.app.ApplicationProvider
 import br.uff.hist.R
 import br.uff.hist.core.location.LocationFix
@@ -29,9 +27,11 @@ import br.uff.hist.testutil.unsupportedApi
 import java.io.IOException
 import kotlin.reflect.KClass
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
@@ -72,13 +72,13 @@ class ChatViewModelTest {
     private val signal = MutableSharedFlow<Boolean>(extraBufferCapacity = 8)
     private val events = SessionEvents()
 
-    private fun vm(): ChatViewModel {
+    private fun vm(foreground: Flow<Boolean> = signal): ChatViewModel {
         val store = FakeSessionStore(Session("tok", User("u1", "Ana", "Souza", "ana@x.com", setOf(Role.USER))))
         return ChatViewModel(
             SavedStateHandle(mapOf("landmarkId" to "p1")),
             LandmarkRepository(api, ApiCaller(HistJson, events)),
             ChatSessionFactory(sockets, location, store, events),
-            { signal },
+            { foreground },
             ErrorMessages(ApplicationProvider.getApplicationContext()),
         )
     }
@@ -96,8 +96,11 @@ class ChatViewModelTest {
         store.clear()
     }
 
-    private fun vmTest(body: suspend TestScope.(ChatViewModel) -> Unit) = runTest(dispatcher, timeout = 30.seconds) {
-        val vm = vm()
+    private fun vmTest(
+        foreground: Flow<Boolean> = signal,
+        body: suspend TestScope.(ChatViewModel) -> Unit,
+    ) = runTest(dispatcher, timeout = 30.seconds) {
+        val vm = vm(foreground)
         try {
             body(vm)
         } finally {
@@ -126,6 +129,32 @@ class ChatViewModelTest {
         runCurrent()
         assertEquals(ChatPhase.Active, vm.chat().phase)
     }
+
+    @Test fun `titulo usa o nome do ponto carregado antes do welcome e o welcome sobrescreve`() = vmTest { vm ->
+        runCurrent()
+        assertEquals(ChatPhase.Connecting, vm.chat().phase)
+        assertEquals("Igreja Matriz", vm.chat().landmarkName)
+
+        sockets.lastConnection!!.serverSend(WELCOME)
+        runCurrent()
+        assertEquals("Igreja", vm.chat().landmarkName)
+    }
+
+    @Test fun `replay inicial de primeiro plano nao dispara onAppForeground`() =
+        vmTest(foreground = flow { emit(true); emitAll(signal) }) { vm ->
+            TestScopeActive(vm, this)
+            val fixes = location.currentCalls
+
+            runCurrent()
+            assertEquals(ChatPhase.Active, vm.chat().phase)
+            assertEquals(fixes, location.currentCalls)
+            assertEquals(1, sockets.connectCount)
+
+            // Uma transição real depois do replay continua funcionando.
+            signal.emit(false)
+            runCurrent()
+            assertEquals(ChatPhase.Paused, vm.chat().phase)
+        }
 
     @Test fun `onCleared sai do chat e fecha a conexao`() = vmTest { vm ->
         TestScopeActive(vm, this)

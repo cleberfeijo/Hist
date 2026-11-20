@@ -35,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -81,13 +82,7 @@ fun LandmarkDetailScreen(
         viewModel.onPermissionResult(result.values.any { it })
     }
     val snackbar = remember { SnackbarHostState() }
-    LaunchedEffect(endMessage) {
-        if (endMessage != null) {
-            val text = context.getString(endMessage)
-            onEndMessageShown()
-            snackbar.showSnackbar(text)
-        }
-    }
+    EndMessageEffect(endMessage, snackbar, onEndMessageShown)
     Box(modifier) {
         LandmarkDetailContent(
             state = state,
@@ -105,6 +100,19 @@ fun LandmarkDetailScreen(
             onDismissSuggestion = viewModel::dismissSuggestion,
         )
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+/** Mostra o texto e só então o consome: limpar a chave antes cancelaria o `showSnackbar` em andamento. */
+@Composable
+internal fun EndMessageEffect(@StringRes endMessage: Int?, snackbar: SnackbarHostState, onShown: () -> Unit) {
+    val context = LocalContext.current
+    val currentOnShown by rememberUpdatedState(onShown)
+    LaunchedEffect(endMessage) {
+        if (endMessage != null) {
+            snackbar.showSnackbar(context.getString(endMessage))
+            currentOnShown()
+        }
     }
 }
 

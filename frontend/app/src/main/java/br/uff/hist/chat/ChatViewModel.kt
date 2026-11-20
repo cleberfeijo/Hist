@@ -77,16 +77,19 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = repository.get(landmarkId)) {
                 is ApiResult.Failure -> _uiState.value = ChatScreenState.Failed(messages.of(result.error))
-                is ApiResult.Success -> begin(result.value.location)
+                is ApiResult.Success -> begin(result.value.name, result.value.location)
             }
         }
     }
 
-    private fun CoroutineScope.begin(point: GeoPoint) {
+    private fun CoroutineScope.begin(landmarkName: String, point: GeoPoint) {
         val created = sessions.create(landmarkId, point, viewModelScope)
         session = created
         created.start()
-        launch { created.state.collect { _uiState.value = ChatScreenState.Ready(it) } }
+        launch { created.state.collect {
+                // O nome já carregado evita o título vazio até o `welcome`, que pode sobrescrevê-lo.
+                _uiState.value = ChatScreenState.Ready(it.copy(landmarkName = it.landmarkName ?: landmarkName))
+            } }
         launch {
             // O sinal pode reemitir o estado atual ao assinar; só reage a transições reais.
             var inBackground = false

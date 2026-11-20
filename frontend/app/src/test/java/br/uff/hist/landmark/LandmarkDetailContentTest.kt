@@ -1,5 +1,12 @@
 package br.uff.hist.landmark
 
+import android.content.Context
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
@@ -9,11 +16,14 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.core.app.ApplicationProvider
+import br.uff.hist.R
 import br.uff.hist.core.designsystem.HistTheme
 import br.uff.hist.core.model.Category
 import br.uff.hist.core.model.GeoPoint
 import br.uff.hist.core.model.Landmark
 import br.uff.hist.core.model.ModerationStatus
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -85,5 +95,27 @@ class LandmarkDetailContentTest {
     @Test fun `cabecalho mostra o total do ponto e nao so os itens carregados`() {
         show(state(ChatAccess.Available).copy(landmark = LANDMARK.copy(curiosityCount = 45)))
         compose.onNodeWithText("Curiosidades · 45").assertExists()
+    }
+
+    @Test fun `mensagem de encerramento fica visivel apos ser consumida e so consome depois de mostrar`() {
+        var endMessage by mutableStateOf<Int?>(R.string.chat_out_of_range)
+        var shown = 0
+        val text = ApplicationProvider.getApplicationContext<Context>().getString(R.string.chat_out_of_range)
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            HistTheme {
+                val snackbar = remember { SnackbarHostState() }
+                EndMessageEffect(endMessage, snackbar) { shown++; endMessage = null }
+                SnackbarHost(snackbar)
+            }
+        }
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithText(text).assertExists()
+        assertEquals(0, shown)
+
+        compose.mainClock.advanceTimeBy(10_000)
+        compose.waitForIdle()
+        assertEquals(1, shown)
+        compose.onNodeWithText(text).assertDoesNotExist()
     }
 }
