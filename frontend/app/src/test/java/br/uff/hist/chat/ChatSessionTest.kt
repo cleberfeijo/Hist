@@ -453,6 +453,93 @@ class ChatSessionTest {
         assertEquals(ChatPhase.Active, state.phase)
     }
 
+    @Test fun backgroundDuringConnectingPausesOnWelcome() = chatTest {
+        session.start()
+        run()
+        session.onAppBackground()
+        run()
+        assertEquals(ChatPhase.Connecting, state.phase)
+        conn.serverSend(welcome(maxLength = 500))
+        conn.serverSend(message("m1", "u2", "Bia", "Oi"))
+        run()
+        assertEquals(ChatPhase.Paused, state.phase)
+        assertEquals(500, state.maxMessageLength)
+        assertTrue(state.items.isEmpty())
+        assertEquals(SendResult.NOT_ACTIVE, session.send("Oi"))
+        // em segundo plano: nem coleta de posição nem ping
+        location.emit(fix(150.0))
+        advance(60_000)
+        assertTrue(conn.sent.isEmpty())
+        assertEquals(50.0, state.distanceM!!, 0.01)
+        location.currentResult = fix(80.0)
+        session.onAppForeground()
+        run()
+        assertEquals(ChatPhase.Active, state.phase)
+        assertEquals(listOf("m:m1"), state.items.map { it.key })
+        assertEquals(0, sendLog.single { it.first == encodeLocation(at(80.0)) }.second)
+    }
+
+    @Test fun backgroundTimeoutWhileConnectingEnds() = chatTest {
+        session.start()
+        run()
+        session.onAppBackground()
+        run()
+        advance(5 * 60_000 - 1)
+        assertEquals(ChatPhase.Connecting, state.phase)
+        advance(1)
+        assertEquals(ChatPhase.Ended(EndReason.BACKGROUND_TIMEOUT), state.phase)
+        assertEquals(1000, conn.closedByClient)
+    }
+
+    @Test fun connectingDropInBackgroundReconnectsOnlyAfterForeground() = chatTest {
+        session.start()
+        run()
+        session.onAppBackground()
+        run()
+        conn.serverClose(1006)
+        advance(60_000)
+        assertEquals(1, factory.connectCount)
+        session.onAppForeground()
+        run()
+        assertEquals(ChatPhase.Reconnecting, state.phase)
+        advance(1_000)
+        assertEquals(2, factory.connectCount)
+        conn.serverSend(welcome())
+        advance(5 * 60_000) // timer cancelado ao voltar
+        assertEquals(ChatPhase.Active, state.phase)
+    }
+
+    // --- Permissão de localização ---
+
+    @Test fun noPermissionEndsSession() = chatTest {
+        location.setPermission(false)
+        session.start()
+        run()
+        assertEquals(ChatPhase.Ended(EndReason.NO_LOCATION_PERMISSION), state.phase)
+        assertEquals(0, factory.connectCount)
+    }
+
+    @Test fun noPermissionBeforeReconnectEnds() = chatTest {
+        active()
+        location.setPermission(false)
+        conn.serverClose(1001)
+        run()
+        advance(60_000)
+        assertEquals(ChatPhase.Ended(EndReason.NO_LOCATION_PERMISSION), state.phase)
+        assertEquals(1, factory.connectCount)
+    }
+
+    @Test fun noPermissionOnResumeEndsAndCloses() = chatTest {
+        active()
+        session.onAppBackground()
+        run()
+        location.setPermission(false)
+        session.onAppForeground()
+        run()
+        assertEquals(ChatPhase.Ended(EndReason.NO_LOCATION_PERMISSION), state.phase)
+        assertEquals(1000, conn.closedByClient)
+    }
+
     // --- Saída ---
 
     @Test fun leaveClosesEmptiesAndIsIdempotent() = chatTest {

@@ -31,7 +31,7 @@ data class ChatConfig(
     val backoffMs: List<Long> = listOf(1_000, 2_000, 4_000, 8_000, 16_000, 30_000),
 )
 
-enum class EndReason { OUT_OF_RANGE, BACKGROUND_TIMEOUT, SESSION_EXPIRED, NOT_FOUND, MOCK_LOCATION, LEFT }
+enum class EndReason { OUT_OF_RANGE, BACKGROUND_TIMEOUT, SESSION_EXPIRED, NOT_FOUND, MOCK_LOCATION, LEFT, NO_LOCATION_PERMISSION }
 
 sealed interface ChatPhase {
     data object Connecting : ChatPhase
@@ -80,10 +80,14 @@ private const val CLOSE_NORMAL = 1000
  * mensagem (só o [SendResult] de [send] é imediato, calculado sobre o [state] atual).
  *
  * Decisões que a spec não fixa:
- * - `start()`/`onAppForeground()` sem fix atual esperam o primeiro fix de `updates(HIGH)`. Sem permissão
- *   (o fluxo completa vazio) a sessão continua esperando: em `Connecting` para sempre, em `Paused` até o
- *   timer de [ChatConfig.backgroundToleranceMs] encerrar com `BACKGROUND_TIMEOUT`.
- * - Ao voltar ao app, o timer de 5 minutos só é cancelado quando o fix novo chega; até lá ele ainda vale.
+ * - `start()`/`onAppForeground()` sem fix atual esperam o primeiro fix de `updates(HIGH)`.
+ * - Sem permissão de localização (no `start()`, antes de cada tentativa de reconexão ou ao voltar ao app,
+ *   ou se `updates` completar vazio) → fecha a conexão e `Ended(NO_LOCATION_PERMISSION)`; nunca fica preso.
+ * - "Em segundo plano" ([inBackground]) vale em qualquer fase: o timer de 5 minutos começa já em
+ *   `Connecting`. Se o `welcome` chegar em segundo plano, raios/limite são aplicados e a sessão vai direto
+ *   para `Paused` (o que vier depois fica guardado). Em segundo plano nunca há tentativa de reconexão.
+ * - Voltando ao app ainda em `Connecting` (sem `welcome`, nada guardado), só cancela o timer e retoma.
+ *   Já em `Paused`, o timer só é cancelado quando o fix novo chega; até lá ele ainda vale.
  * - Só `welcome` torna a sessão `Active`. Conexão que termina antes do `welcome` conta como tentativa
  *   falha (o backoff continua); `welcome` zera o backoff. A tentativa k espera `backoffMs[min(k, último)]`,
  *   depois de checar `current(HIGH)`: fix nulo → tenta de novo na próxima espera; mock → `MOCK_LOCATION`;
@@ -147,7 +151,9 @@ class ChatSession(
     private var attempt = 0
     private var lastSentPoint: GeoPoint? = null
 
-    private var paused = false
+    private var inBackground = false
+    private var paused = false // fase Paused: eventos guardados, não exibidos
+    private var pendingReconnect = false // a conexão caiu em segundo plano
     private val buffer = mutableListOf<ServerEvent>()
     private var presenceSeq = 0
 
@@ -226,6 +232,7 @@ class ChatSession(
     private fun onStart() {
         if (started) return
         started = true
+        if (!location.hasPermission()) return end(EndReason.NO_LOCATION_PERMISSION)
         startJob = scope.launch { post(Input.StartFix(freshFix())) }
     }
 
@@ -234,7 +241,7 @@ class ChatSession(
             ?: location.updates(LocationPriority.HIGH, CHAT_INTERVAL_MS).firstOrNull()
 
     private fun onStartFix(fix: LocationFix?) {
-        if (fix == null) return // sem permissão: segue em Connecting
+        if (fix == null) return end(EndReason.NO_LOCATION_PERMISSION) // `updates` completou vazio
         if (fix.isMock) return end(EndReason.MOCK_LOCATION)
         updateDistance(fix.point)
         connect(fix.point)
@@ -261,7 +268,14 @@ class ChatSession(
             is SocketEvent.Text -> {
                 val parsed = parseServerEvent(event.raw) ?: return
                 if (parsed == ServerEvent.Pong) return
-                if (paused) buffer += parsed else apply(parsed)
+                when {
+                    !inBackground -> apply(parsed)
+                    parsed is ServerEvent.Welcome -> {
+                        applyWelcome(parsed)
+                        if (!paused) pause()
+                    }
+                    else -> buffer += parsed
+                }
             }
             is SocketEvent.Closed -> onConnectionEnded(event.code)
             is SocketEvent.Failure -> onConnectionEnded(null)
@@ -271,18 +285,8 @@ class ChatSession(
     private fun apply(event: ServerEvent) {
         when (event) {
             is ServerEvent.Welcome -> {
-                me = event.me
-                _state.update {
-                    it.copy(
-                        landmarkName = event.landmarkName,
-                        memberCount = event.memberCount,
-                        joinRadiusM = event.joinRadiusM,
-                        leaveRadiusM = event.leaveRadiusM,
-                        maxMessageLength = event.maxMessageLength,
-                        warnLeaving = it.distanceM?.let { d -> d > event.joinRadiusM } ?: false,
-                    )
-                }
-                if (conn != null) enterActive()
+                applyWelcome(event)
+                enterActive()
             }
             is ServerEvent.Message -> {
                 val key = "m:${event.id}"
@@ -305,9 +309,24 @@ class ChatSession(
         }
     }
 
-    private fun enterActive() {
+    /** Guarda dados do `welcome` da conexão atual e zera o backoff, sem mudar a fase. */
+    private fun applyWelcome(event: ServerEvent.Welcome) {
+        me = event.me
         welcomed = true
         attempt = 0
+        _state.update {
+            it.copy(
+                landmarkName = event.landmarkName,
+                memberCount = event.memberCount,
+                joinRadiusM = event.joinRadiusM,
+                leaveRadiusM = event.leaveRadiusM,
+                maxMessageLength = event.maxMessageLength,
+                warnLeaving = it.distanceM?.let { d -> d > event.joinRadiusM } ?: false,
+            )
+        }
+    }
+
+    private fun enterActive() {
         setPhase(ChatPhase.Active)
         startTracking()
     }
@@ -325,7 +344,8 @@ class ChatSession(
                 end(EndReason.SESSION_EXPIRED)
             }
             CLOSE_NOT_FOUND, CLOSE_BAD_REQUEST -> end(EndReason.NOT_FOUND)
-            else -> if (!paused) scheduleReconnect() // em Paused não reconecta: decide-se ao voltar ao app
+            // em segundo plano não reconecta: decide-se ao voltar ao app
+            else -> if (inBackground) pendingReconnect = true else scheduleReconnect()
         }
     }
 
@@ -333,6 +353,7 @@ class ChatSession(
 
     private fun startTracking() {
         stopTracking()
+        if (inBackground) return // posição e ping só depois que a volta ao app passar na checagem de raio
         val token = newToken()
         trackToken = token
         locationJob = scope.launch {
@@ -376,6 +397,7 @@ class ChatSession(
     // ---- Reconexão ----
 
     private fun scheduleReconnect() {
+        if (!location.hasPermission()) return end(EndReason.NO_LOCATION_PERMISSION)
         setPhase(ChatPhase.Reconnecting)
         val waitMs = config.backoffMs[minOf(attempt, config.backoffMs.lastIndex)]
         attempt++
@@ -398,7 +420,11 @@ class ChatSession(
     private fun onReconnectDue(fix: LocationFix?) {
         reconnectToken = 0
         reconnectJob = null
-        if (fix == null) scheduleReconnect() else connect(fix.point)
+        when {
+            fix == null -> scheduleReconnect()
+            !location.hasPermission() -> end(EndReason.NO_LOCATION_PERMISSION)
+            else -> connect(fix.point)
+        }
     }
 
     private fun cancelReconnect() {
@@ -410,29 +436,48 @@ class ChatSession(
     // ---- Segundo plano ----
 
     private fun onBackground() {
-        if (paused) {
-            // saiu de novo enquanto obtinha o fix da volta: segue pausado com o timer original
+        if (inBackground) {
+            // saiu de novo enquanto obtinha o fix da volta: segue em segundo plano com o timer original
             foregroundToken = 0
             foregroundJob?.cancel()
             foregroundJob = null
             return
         }
-        val phase = _state.value.phase
-        if (phase != ChatPhase.Active && phase != ChatPhase.Reconnecting) return
-        paused = true
-        stopTracking()
-        if (reconnectToken != 0) cancelReconnect()
-        setPhase(ChatPhase.Paused)
+        inBackground = true
         val token = newToken()
         timerToken = token
         timerJob = scope.launch {
             delay(config.backgroundToleranceMs)
             post(Input.BackgroundTimeout(token))
         }
+        val phase = _state.value.phase
+        if (phase == ChatPhase.Active || phase == ChatPhase.Reconnecting) {
+            if (reconnectToken != 0) cancelReconnect()
+            if (conn == null) pendingReconnect = true
+            pause()
+        }
+        // Connecting: a tentativa segue; um `welcome` em segundo plano leva a Paused
+    }
+
+    private fun pause() {
+        paused = true
+        stopTracking()
+        setPhase(ChatPhase.Paused)
     }
 
     private fun onForeground() {
-        if (!paused || foregroundToken != 0) return
+        if (!inBackground || foregroundToken != 0) return
+        if (!location.hasPermission()) return end(EndReason.NO_LOCATION_PERMISSION)
+        if (!paused) {
+            // ainda em Connecting: nada foi exibido nem guardado
+            inBackground = false
+            cancelTimer()
+            if (pendingReconnect) {
+                pendingReconnect = false
+                scheduleReconnect()
+            }
+            return
+        }
         val token = newToken()
         foregroundToken = token
         foregroundJob = scope.launch { post(Input.ForegroundFix(token, freshFix())) }
@@ -441,26 +486,32 @@ class ChatSession(
     private fun onForegroundFix(fix: LocationFix?) {
         foregroundToken = 0
         foregroundJob = null
-        if (fix == null) return // sem permissão: o timer de 5 minutos decide
-        timerToken = 0
-        timerJob?.cancel()
-        timerJob = null
+        if (fix == null) return end(EndReason.NO_LOCATION_PERMISSION) // `updates` completou vazio
+        cancelTimer()
         if (fix.isMock) return end(EndReason.MOCK_LOCATION)
         if (updateDistance(fix.point) > _state.value.leaveRadiusM) return end(EndReason.OUT_OF_RANGE)
 
+        inBackground = false
         paused = false
-        if (conn != null) sendLocation(fix.point) // a posição nova vai antes de mostrar o que foi guardado
+        // a posição nova vai antes de mostrar o que foi guardado
+        if (conn != null && welcomed) sendLocation(fix.point)
         val pending = buffer.toList()
         buffer.clear()
         pending.forEach(::apply)
         when {
-            conn == null -> { // a conexão caiu durante a pausa: regras de reconexão
-                stopTracking()
+            conn == null -> { // a conexão caiu em segundo plano: regras de reconexão
+                pendingReconnect = false
                 scheduleReconnect()
             }
             welcomed -> enterActive()
             else -> setPhase(ChatPhase.Reconnecting) // conexão aberta, ainda sem `welcome`
         }
+    }
+
+    private fun cancelTimer() {
+        timerToken = 0
+        timerJob?.cancel()
+        timerJob = null
     }
 
     // ---- Fim ----
