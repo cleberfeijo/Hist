@@ -15,6 +15,7 @@ import androidx.navigation.NavDestination.Companion.hasRoute
 import br.uff.hist.auth.LoginScreen
 import br.uff.hist.auth.RegisterScreen
 import br.uff.hist.core.designsystem.components.LoadingState
+import br.uff.hist.landmark.LandmarkDetailScreen
 import br.uff.hist.onboarding.LocationOnboardingScreen
 import kotlinx.coroutines.launch
 
@@ -63,7 +64,12 @@ fun HistNavHost(modifier: Modifier = Modifier, viewModel: RootViewModel = hiltVi
                 onSuggestLandmark = { navController.navigate(SuggestLandmark) },
             )
         }
-        composable<LandmarkDetail> { PlaceholderScreen() }
+        composable<LandmarkDetail> {
+            LandmarkDetailScreen(
+                onBack = { navController.popBackStack() },
+                onEnterChat = { navController.navigate(Chat(it)) },
+            )
+        }
         composable<Chat> { PlaceholderScreen() }
         composable<SuggestLandmark> { PlaceholderScreen() }
         composable<MyContributions> { PlaceholderScreen() }

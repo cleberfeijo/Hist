@@ -53,4 +53,26 @@
         <item quantity="one">%d curiosidade</item>
         <item quantity="other">%d curiosidades</item>
     </plurals>
+    <string name="detail_distance_m">a %1$d m</string>
+    <string name="detail_distance_km">a %1$s km</string>
+    <string name="detail_location_line">%1$s · %2$s</string>
+    <string name="detail_city_line">%1$s, %2$s</string>
+    <string name="chat_enter">Entrar no chat do local</string>
+    <string name="chat_too_far">Chegue a %1$d m para entrar no chat (faltam %2$d m)</string>
+    <string name="chat_locating">Procurando sua localização…</string>
+    <string name="chat_mock_location">Localização simulada detectada. Desative-a para entrar no chat.</string>
+    <string name="chat_no_permission">Ative a localização para entrar no chat.</string>
+    <string name="curiosities_header">Curiosidades · %1$d</string>
+    <string name="curiosity_suggest">+ Sugerir</string>
+    <string name="curiosities_empty">Ninguém contou nada sobre este lugar ainda. Seja o primeiro.</string>
+    <string name="curiosities_load_failed">Não foi possível carregar mais curiosidades.</string>
+    <string name="curiosity_suggest_title">Sugerir curiosidade</string>
+    <string name="curiosity_suggest_hint">Conte algo sobre este lugar (mín. 10 caracteres)</string>
+    <string name="curiosity_suggest_send">Enviar</string>
+    <string name="curiosity_suggest_cancel">Cancelar</string>
+    <string name="curiosity_suggest_invalid">A curiosidade precisa ter entre 10 e 2000 caracteres.</string>
+    <string name="curiosity_suggest_sent">Recebido! Vai aparecer depois de aprovada.</string>
+    <string name="image_credit">Foto: %1$s · %2$s</string>
+    <string name="image_credit_no_license">Foto: %1$s</string>
+    <string name="curiosity_source">Fonte: %1$s</string>
 </resources>
