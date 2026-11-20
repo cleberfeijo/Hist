@@ -247,4 +247,30 @@ class LandmarkDetailViewModelTest {
         assertFalse(vm.uiState.value.curiositiesFailed)
         assertEquals(1, api.landmarkCalls)
     }
+
+    @Test fun `apos onStop e onStart volta a Locating ate um fix novo`() = runTest(dispatcher) {
+        val vm = started()
+        location.emit(fix(USER))
+        advanceUntilIdle()
+        assertEquals(ChatAccess.Available, vm.uiState.value.chatAccess)
+        vm.onStop()
+        vm.onStart()
+        advanceUntilIdle()
+        assertEquals(ChatAccess.Locating, vm.uiState.value.chatAccess)
+        assertNull(vm.uiState.value.distanceM)
+        location.emit(fix(USER))
+        advanceUntilIdle()
+        assertEquals(ChatAccess.Available, vm.uiState.value.chatAccess)
+    }
+
+    @Test fun `pagina 2 com item repetido nao duplica ids`() = runTest(dispatcher) {
+        api.pages = mapOf(
+            1 to PageDto(listOf(curiosityDto("a"), curiosityDto("b")), 4, 1, 2),
+            2 to PageDto(listOf(curiosityDto("b"), curiosityDto("c")), 4, 2, 2),
+        )
+        val vm = started()
+        vm.loadMore()
+        advanceUntilIdle()
+        assertEquals(listOf("a", "b", "c"), vm.uiState.value.curiosities.map { it.id })
+    }
 }

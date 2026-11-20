@@ -81,4 +81,9 @@ class LandmarkDetailContentTest {
         compose.onNodeWithText("Ative a localização para entrar no chat.").assertIsDisplayed()
         compose.onNodeWithText("Ativar localização").assertIsDisplayed()
     }
+
+    @Test fun `cabecalho mostra o total do ponto e nao so os itens carregados`() {
+        show(state(ChatAccess.Available).copy(landmark = LANDMARK.copy(curiosityCount = 45)))
+        compose.onNodeWithText("Curiosidades · 45").assertExists()
+    }
 }

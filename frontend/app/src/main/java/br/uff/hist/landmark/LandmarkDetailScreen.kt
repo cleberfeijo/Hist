@@ -150,7 +150,7 @@ private fun DetailList(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    stringResource(R.string.curiosities_header, state.curiosities.size),
+                    stringResource(R.string.curiosities_header, maxOf(landmark.curiosityCount, state.curiosities.size)),
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.weight(1f),
                 )

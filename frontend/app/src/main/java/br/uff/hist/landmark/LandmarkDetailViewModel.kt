@@ -102,6 +102,9 @@ class LandmarkDetailViewModel @Inject constructor(
         visible = false
         locationJob?.cancel()
         locationJob = null
+        // Posição velha não vale ao voltar: o botão do chat volta a "Procurando…" até o próximo fix.
+        fix = null
+        publishAccess()
     }
 
     fun onPermissionResult(granted: Boolean) = applyPermission(granted)
@@ -192,7 +195,7 @@ class LandmarkDetailViewModel @Inject constructor(
                     nextPage = result.value.page + 1
                     more = result.value.hasMore
                     _uiState.update {
-                        it.copy(curiosities = it.curiosities + result.value.items, hasMore = more, curiositiesLoaded = true)
+                        it.copy(curiosities = (it.curiosities + result.value.items).distinctBy { c -> c.id }, hasMore = more, curiositiesLoaded = true)
                     }
                 }
                 is ApiResult.Failure -> _uiState.update { it.copy(curiositiesFailed = true) }
