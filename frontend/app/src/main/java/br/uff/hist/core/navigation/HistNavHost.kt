@@ -19,12 +19,21 @@ import br.uff.hist.contribute.SuggestLandmarkScreen
 import br.uff.hist.core.designsystem.components.LoadingState
 import br.uff.hist.landmark.LandmarkDetailScreen
 import br.uff.hist.onboarding.LocationOnboardingScreen
+import br.uff.hist.moderation.Decision
+import br.uff.hist.moderation.ModerationDetailScreen
+import br.uff.hist.moderation.ModerationKind
+import br.uff.hist.moderation.ModerationQueueScreen
+import br.uff.hist.moderation.ModerationQueueViewModel
 import br.uff.hist.profile.MyContributionsScreen
 import br.uff.hist.profile.SettingsScreen
 import kotlinx.coroutines.launch
 
 /** Chave no `savedStateHandle` do detalhe com o texto (string res) de encerramento do chat; consumido uma vez. */
 private const val CHAT_END_MESSAGE_KEY = "chat_end_message"
+
+/** Chaves no `savedStateHandle` da fila de moderação com a decisão do detalhe; consumidas uma vez. */
+private const val DECISION_ID_KEY = "moderation_decision_id"
+private const val DECISION_NOTICE_KEY = "moderation_decision_notice"
 
 @Composable
 fun HistNavHost(modifier: Modifier = Modifier, viewModel: RootViewModel = hiltViewModel()) {
@@ -37,6 +46,7 @@ fun HistNavHost(modifier: Modifier = Modifier, viewModel: RootViewModel = hiltVi
     }
 
     val navController = rememberNavController()
+    val isModerator = session?.user?.isModerator
     val scope = rememberCoroutineScope()
 
     // Sessão perdida (logout, revogada, expirada) fora das telas de entrada: volta ao Login e zera a pilha.
@@ -99,10 +109,64 @@ fun HistNavHost(modifier: Modifier = Modifier, viewModel: RootViewModel = hiltVi
         }
         composable<MyContributions> { MyContributionsScreen(onBack = { navController.popBackStack() }) }
         composable<Settings> { SettingsScreen(onBack = { navController.popBackStack() }) }
-        composable<ModerationQueue> { PlaceholderScreen() }
-        composable<ModerationLandmark> { PlaceholderScreen() }
-        composable<ModerationCuriosity> { PlaceholderScreen() }
+        composable<ModerationQueue> { entry ->
+            ModeratorOnly(isModerator, onDenied = { navController.popBackStack() }) {
+                val handle = entry.savedStateHandle
+                val decision by handle.getStateFlow<String?>(DECISION_ID_KEY, null).collectAsStateWithLifecycle()
+                val viewModel: ModerationQueueViewModel = hiltViewModel()
+                // O detalhe entrega a decisão aqui: o item sai da lista sem recarregar e o aviso aparece.
+                LaunchedEffect(decision) {
+                    decision?.let {
+                        viewModel.decided(it, handle[DECISION_NOTICE_KEY])
+                        handle[DECISION_ID_KEY] = null
+                        handle[DECISION_NOTICE_KEY] = null
+                    }
+                }
+                ModerationQueueScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenLandmark = { navController.navigate(ModerationLandmark(it)) },
+                    onOpenCuriosity = { navController.navigate(ModerationCuriosity(it)) },
+                    viewModel = viewModel,
+                )
+            }
+        }
+        composable<ModerationLandmark> {
+            ModeratorOnly(isModerator, onDenied = { navController.popBackStack(Main, inclusive = false) }) {
+                ModerationDetailScreen(
+                    kind = ModerationKind.LANDMARK,
+                    onBack = { navController.popBackStack() },
+                    onDecided = { navController.deliverDecision(it) },
+                )
+            }
+        }
+        composable<ModerationCuriosity> {
+            ModeratorOnly(isModerator, onDenied = { navController.popBackStack(Main, inclusive = false) }) {
+                ModerationDetailScreen(
+                    kind = ModerationKind.CURIOSITY,
+                    onBack = { navController.popBackStack() },
+                    onDecided = { navController.deliverDecision(it) },
+                )
+            }
+        }
     }
+}
+
+/** Sem permissão de moderação, nada é composto (nem ViewModel, nem API) e a tela volta ao Perfil. */
+@Composable
+private fun ModeratorOnly(isModerator: Boolean?, onDenied: () -> Unit, content: @Composable () -> Unit) {
+    when (isModerator) {
+        true -> content()
+        false -> LaunchedEffect(Unit) { onDenied() }
+        null -> Unit // sem sessão: o efeito de sessão perdida leva ao Login
+    }
+}
+
+private fun NavController.deliverDecision(decision: Decision) {
+    previousBackStackEntry?.savedStateHandle?.let {
+        it[DECISION_NOTICE_KEY] = decision.notice
+        it[DECISION_ID_KEY] = decision.id
+    }
+    popBackStack()
 }
 
 private fun NavController.navigateClearingStack(route: Any) {

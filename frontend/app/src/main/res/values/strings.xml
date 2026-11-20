@@ -130,4 +130,16 @@
     <string name="new_password_length">A senha precisa ter entre 8 e 72 caracteres.</string>
     <string name="settings_saved">Dados atualizados.</string>
     <string name="settings_password_changed">Senha alterada.</string>
+    <string name="moderation_title">Moderação</string>
+    <string name="moderation_empty">Nada para revisar por aqui.</string>
+    <string name="moderation_approve">Aprovar</string>
+    <string name="moderation_reject">Rejeitar</string>
+    <string name="moderation_reject_title">Motivo da rejeição</string>
+    <string name="moderation_reject_field">Explique o motivo (mín. 3 caracteres)</string>
+    <string name="moderation_reason_error">O motivo precisa ter entre 3 e 500 caracteres.</string>
+    <string name="moderation_approved">Aprovado.</string>
+    <string name="moderation_rejected">Rejeitado.</string>
+    <string name="moderation_already_reviewed">Este item já foi revisado por outra pessoa.</string>
+    <string name="moderation_landmark_of">Ponto: %1$s</string>
+    <string name="moderation_imported">Importado</string>
 </resources>

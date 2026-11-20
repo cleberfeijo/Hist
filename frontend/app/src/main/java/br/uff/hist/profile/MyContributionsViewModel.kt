@@ -48,7 +48,7 @@ data class MyContributionsUiState(
 )
 
 /** Carrega uma lista paginada (uma página por vez, sem duplicar itens). */
-private class PagedLoader<T>(
+internal class PagedLoader<T>(
     private val scope: CoroutineScope,
     private val fetch: suspend (Int) -> ApiResult<Page<T>>,
     private val id: (T) -> String,
