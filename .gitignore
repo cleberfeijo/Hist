@@ -89,3 +89,6 @@ venv*/
 .ruff_cache/
 .env.*
 !.env.example
+
+# Mockups do brainstorming (visual companion)
+.superpowers/
