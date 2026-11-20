@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Hist</string>
+    <string name="status_pending">Pendente</string>
+    <string name="status_approved">Aprovado</string>
+    <string name="status_rejected">Rejeitado</string>
+    <string name="retry">Tentar de novo</string>
 </resources>
