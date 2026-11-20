@@ -81,6 +81,12 @@ class ExploreViewModelTest {
         assertEquals(USER, vm.uiState.value.user)
     }
 
+    @Test fun `com permissao o titulo e Perto de voce antes de qualquer posicao`() = runTest(dispatcher) {
+        val vm = started(vm())
+        assertEquals(SheetTitle.NEAR_YOU, vm.uiState.value.sheetTitle)
+        assertTrue(api.calls.isEmpty())
+    }
+
     @Test fun `10 m nao refaz a busca e 30 m refaz`() = runTest(dispatcher) {
         val vm = started(vm())
         location.emit(fix(USER))

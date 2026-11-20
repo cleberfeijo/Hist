@@ -83,7 +83,7 @@ fun ExploreScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ExploreContent(
+internal fun ExploreContent(
     state: ExploreUiState,
     errorMessage: String?,
     onSetMode: (ExploreMode) -> Unit,
@@ -93,13 +93,23 @@ private fun ExploreContent(
     onOpenLandmark: (String) -> Unit,
     onSuggestLandmark: () -> Unit,
     modifier: Modifier = Modifier,
+    // Ponto de injeção: o GoogleMap não roda em testes locais (Robolectric).
+    mapContent: @Composable (Modifier) -> Unit = { mapModifier ->
+        ExploreMap(
+            state = state,
+            onCameraIdle = onCameraIdle,
+            onMarkerClick = onOpenLandmark,
+            contentPadding = PaddingValues(bottom = SheetPeekHeight),
+            modifier = mapModifier,
+        )
+    },
 ) {
     val mapMode = state.mode == ExploreMode.MAP
     val topBar: @Composable () -> Unit = {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             ModeSelector(state.mode, onSetMode)
             if (!state.hasPermission) PermissionBanner(onEnableLocation)
-            if (errorMessage != null && state.sheetItems.isNotEmpty()) ErrorBanner(errorMessage, onRetry)
+            if (errorMessage != null && (mapMode || state.sheetItems.isNotEmpty())) ErrorBanner(errorMessage, onRetry)
         }
     }
     val listContent: @Composable (Modifier) -> Unit = { listModifier ->
@@ -109,7 +119,7 @@ private fun ExploreContent(
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
-            if (errorMessage != null && state.sheetItems.isEmpty()) {
+            if (!mapMode && errorMessage != null && state.sheetItems.isEmpty()) {
                 Box(Modifier.fillMaxWidth().height(220.dp)) { ErrorState(errorMessage, onRetry) }
             } else {
                 LandmarkList(state.sheetItems, onOpenLandmark, Modifier.fillMaxWidth())
@@ -126,13 +136,7 @@ private fun ExploreContent(
                 sheetContent = { listContent(Modifier.fillMaxWidth().heightIn(max = SheetMaxHeight)) },
             ) { _ ->
                 Box(Modifier.fillMaxSize()) {
-                    ExploreMap(
-                        state = state,
-                        onCameraIdle = onCameraIdle,
-                        onMarkerClick = onOpenLandmark,
-                        contentPadding = PaddingValues(bottom = SheetPeekHeight),
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                    mapContent(Modifier.fillMaxSize())
                     Surface(
                         color = MaterialTheme.colorScheme.background.copy(alpha = 0.92f),
                         modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),

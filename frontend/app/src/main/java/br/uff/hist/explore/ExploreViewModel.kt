@@ -49,7 +49,14 @@ class ExploreViewModel @Inject constructor(
     private val repository: LandmarkRepository,
     private val location: LocationProvider,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(ExploreUiState(hasPermission = location.hasPermission()))
+    private val _uiState = MutableStateFlow(
+        location.hasPermission().let {
+            ExploreUiState(
+                hasPermission = it,
+                sheetTitle = if (it) SheetTitle.NEAR_YOU else SheetTitle.THIS_AREA,
+            )
+        },
+    )
     val uiState: StateFlow<ExploreUiState> = _uiState.asStateFlow()
 
     private var userLandmarks: List<Landmark> = emptyList()
