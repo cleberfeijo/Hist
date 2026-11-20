@@ -105,7 +105,7 @@ class RegisterViewModelTest {
         )
     }
 
-    @Test fun `422 com chave desconhecida mostra a mensagem geral`() = runTest {
+    @Test fun `422 com chaves desconhecidas mostra as mensagens delas`() = runTest {
         api.registerHandler = {
             throw httpError(
                 422, "validation_error", "Dados inválidos.",
@@ -114,7 +114,7 @@ class RegisterViewModelTest {
         }
         fill()
         vm.submit()
-        assertEquals("Dados inválidos.", vm.uiState.value.error)
+        assertEquals("modelo inválido\nx", vm.uiState.value.error)
         assertFalse(vm.uiState.value.isSubmitting)
     }
 
@@ -125,6 +125,37 @@ class RegisterViewModelTest {
         fill()
         vm.submit()
         assertNull(vm.uiState.value.error)
+    }
+
+    @Test fun `422 misto mostra campo conhecido e mensagem do desconhecido`() = runTest {
+        api.registerHandler = {
+            throw httpError(
+                422, "validation_error", "Dados inválidos.",
+                """[{"field":"email","message":"e-mail inválido"},{"field":"profile.bio","message":"bio longa"}]""",
+            )
+        }
+        fill()
+        vm.submit()
+        assertEquals("e-mail inválido", vm.uiState.value.fieldErrors["email"])
+        assertEquals("bio longa", vm.uiState.value.error)
+    }
+
+    @Test fun `422 com chave desconhecida e mensagens em branco usa a mensagem do servidor`() = runTest {
+        api.registerHandler = {
+            throw httpError(422, "validation_error", "Dados inválidos.", """[{"field":"","message":""}]""")
+        }
+        fill()
+        vm.submit()
+        assertEquals("Dados inválidos.", vm.uiState.value.error)
+    }
+
+    @Test fun `422 tudo em branco cai na mensagem generica`() = runTest {
+        api.registerHandler = {
+            throw httpError(422, "validation_error", "", """[{"field":"x.y","message":""}]""")
+        }
+        fill()
+        vm.submit()
+        assertEquals("Algo deu errado. Tente de novo.", vm.uiState.value.error)
     }
 
     @Test fun `erro de rede vai para error`() = runTest {

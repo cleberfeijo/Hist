@@ -73,7 +73,7 @@ fun RegisterContent(
             onValueChange = onNameChange,
             label = stringResource(R.string.field_name),
             capitalization = KeyboardCapitalization.Words,
-            error = state.fieldErrors["name"],
+            error = state.fieldErrors[RegisterFields.NAME],
             enabled = !state.isSubmitting,
         )
         AuthTextField(
@@ -81,7 +81,7 @@ fun RegisterContent(
             onValueChange = onLastNameChange,
             label = stringResource(R.string.field_last_name),
             capitalization = KeyboardCapitalization.Words,
-            error = state.fieldErrors["last_name"],
+            error = state.fieldErrors[RegisterFields.LAST_NAME],
             enabled = !state.isSubmitting,
         )
         AuthTextField(
@@ -89,14 +89,14 @@ fun RegisterContent(
             onValueChange = onEmailChange,
             label = stringResource(R.string.field_email),
             keyboardType = KeyboardType.Email,
-            error = state.fieldErrors["email"],
+            error = state.fieldErrors[RegisterFields.EMAIL],
             enabled = !state.isSubmitting,
         )
         PasswordField(
             value = state.password,
             onValueChange = onPasswordChange,
             onDone = onSubmit,
-            error = state.fieldErrors["password"],
+            error = state.fieldErrors[RegisterFields.PASSWORD],
             enabled = !state.isSubmitting,
         )
         state.error?.let {
