@@ -19,6 +19,8 @@ import br.uff.hist.contribute.SuggestLandmarkScreen
 import br.uff.hist.core.designsystem.components.LoadingState
 import br.uff.hist.landmark.LandmarkDetailScreen
 import br.uff.hist.onboarding.LocationOnboardingScreen
+import br.uff.hist.profile.MyContributionsScreen
+import br.uff.hist.profile.SettingsScreen
 import kotlinx.coroutines.launch
 
 /** Chave no `savedStateHandle` do detalhe com o texto (string res) de encerramento do chat; consumido uma vez. */
@@ -67,6 +69,10 @@ fun HistNavHost(modifier: Modifier = Modifier, viewModel: RootViewModel = hiltVi
             MainScaffold(
                 onOpenLandmark = { navController.navigate(LandmarkDetail(it)) },
                 onSuggestLandmark = { navController.navigate(SuggestLandmark) },
+                user = session?.user,
+                onMyContributions = { navController.navigate(MyContributions) },
+                onModeration = { navController.navigate(ModerationQueue) },
+                onSettings = { navController.navigate(Settings) },
             )
         }
         composable<LandmarkDetail> { entry ->
@@ -91,8 +97,8 @@ fun HistNavHost(modifier: Modifier = Modifier, viewModel: RootViewModel = hiltVi
         composable<SuggestLandmark> {
             SuggestLandmarkScreen(onBack = { navController.popBackStack() }, onDone = { navController.popBackStack() })
         }
-        composable<MyContributions> { PlaceholderScreen() }
-        composable<Settings> { PlaceholderScreen() }
+        composable<MyContributions> { MyContributionsScreen(onBack = { navController.popBackStack() }) }
+        composable<Settings> { SettingsScreen(onBack = { navController.popBackStack() }) }
         composable<ModerationQueue> { PlaceholderScreen() }
         composable<ModerationLandmark> { PlaceholderScreen() }
         composable<ModerationCuriosity> { PlaceholderScreen() }
