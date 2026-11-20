@@ -18,15 +18,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import br.uff.hist.R
+import br.uff.hist.explore.ExploreScreen
 
 private enum class MainTab(val labelRes: Int, val icon: ImageVector) {
     EXPLORE(R.string.tab_explore, Icons.Filled.Explore),
     PROFILE(R.string.tab_profile, Icons.Filled.Person),
 }
 
-/** Barra inferior Explorar | Perfil; os corpos são provisórios até as Tasks 8 e 14. */
+/** Barra inferior Explorar | Perfil; o corpo do Perfil é provisório até a Task 14. */
 @Composable
-fun MainScaffold(modifier: Modifier = Modifier) {
+fun MainScaffold(
+    onOpenLandmark: (String) -> Unit,
+    onSuggestLandmark: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var selected by rememberSaveable { mutableIntStateOf(0) }
     Scaffold(
         modifier = modifier,
@@ -43,7 +48,10 @@ fun MainScaffold(modifier: Modifier = Modifier) {
             }
         },
     ) { padding ->
-        // Corpos provisórios: Explorar (Task 8) e Perfil (Task 14) substituem estes.
-        PlaceholderScreen(Modifier.padding(padding))
+        when (MainTab.entries[selected]) {
+            MainTab.EXPLORE -> ExploreScreen(onOpenLandmark, onSuggestLandmark, Modifier.padding(padding))
+            // Task 14 substitui este corpo.
+            MainTab.PROFILE -> PlaceholderScreen(Modifier.padding(padding))
+        }
     }
 }

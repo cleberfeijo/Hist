@@ -39,4 +39,18 @@
     <string name="onboarding_continue">Continuar</string>
     <string name="onboarding_title">Descubra a história ao seu redor</string>
     <string name="onboarding_body">O Hist usa sua localização para mostrar os pontos históricos perto de você e liberar o chat de cada lugar quando você estiver a até 200 m. A localização só é usada com o app aberto.</string>
+    <string name="explore_mode_map">Mapa</string>
+    <string name="explore_mode_list">Lista</string>
+    <string name="sheet_near_you">Perto de você</string>
+    <string name="sheet_this_area">Nesta área</string>
+    <string name="chat_chip">Chat</string>
+    <string name="location_banner">Ative a localização para ver o que há ao seu redor e entrar nos chats.</string>
+    <string name="location_enable">Ativar localização</string>
+    <string name="suggest_landmark">Sugerir ponto</string>
+    <string name="distance_m">%1$d m</string>
+    <string name="distance_km">%1$s km</string>
+    <plurals name="curiosity_count">
+        <item quantity="one">%d curiosidade</item>
+        <item quantity="other">%d curiosidades</item>
+    </plurals>
 </resources>

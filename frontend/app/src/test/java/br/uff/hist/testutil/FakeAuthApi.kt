@@ -10,7 +10,7 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import retrofit2.HttpException
 import retrofit2.Response
 
-private fun unsupportedApi(): HistApi = Proxy.newProxyInstance(
+internal fun unsupportedApi(): HistApi = Proxy.newProxyInstance(
     HistApi::class.java.classLoader,
     arrayOf(HistApi::class.java),
 ) { _, method, _ -> throw UnsupportedOperationException(method.name) } as HistApi

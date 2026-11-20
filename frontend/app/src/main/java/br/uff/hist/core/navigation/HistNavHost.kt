@@ -57,7 +57,12 @@ fun HistNavHost(modifier: Modifier = Modifier, viewModel: RootViewModel = hiltVi
                 navController.navigateClearingStack(Main)
             })
         }
-        composable<Main> { MainScaffold() }
+        composable<Main> {
+            MainScaffold(
+                onOpenLandmark = { navController.navigate(LandmarkDetail(it)) },
+                onSuggestLandmark = { navController.navigate(SuggestLandmark) },
+            )
+        }
         composable<LandmarkDetail> { PlaceholderScreen() }
         composable<Chat> { PlaceholderScreen() }
         composable<SuggestLandmark> { PlaceholderScreen() }
