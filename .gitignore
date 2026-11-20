@@ -92,3 +92,10 @@ venv*/
 
 # Mockups do brainstorming (visual companion)
 .superpowers/
+
+### Android (frontend/) ###
+frontend/local.properties
+frontend/.gradle/
+frontend/**/build/
+*.jks
+*.keystore

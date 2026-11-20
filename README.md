@@ -13,7 +13,7 @@ Projeto de TCC — Ciência da Computação, UFF (Rio das Ostras).
 |---|---|
 | `backend/` | API (FastAPI + MongoDB + Redis), worker Celery e testes |
 | `docs/` | Referência da API e do protocolo do chat para o app |
-| `android/` | App Kotlin/Jetpack Compose *(em construção)* |
+| `frontend/` | App Android (Kotlin/Jetpack Compose) *(em construção)* |
 
 ## Rodando localmente
 
@@ -73,3 +73,17 @@ O GitHub Actions roda lint, testes e build da imagem a cada push em `backend/`.
 Conteúdo importado pelo crawler entra aprovado, com a fonte (`source`) registrada.
 
 Detalhes dos endpoints e do protocolo do chat: [`docs/api.md`](docs/api.md).
+
+## Rodando o app
+
+Pré-requisitos: JDK 17 e Android SDK (plataforma 36). Suba a API (seção acima) e, a partir de `frontend/`:
+
+```bash
+./gradlew :app:testDebugUnitTest               # testes
+./gradlew :app:lintDebug :app:assembleDebug    # lint + APK de debug
+```
+
+No debug o app fala com `http://10.0.2.2:8080/v1/` (o host visto pelo emulador). Configurações
+locais opcionais ficam em `frontend/local.properties` (não versionado) ou em variáveis de ambiente:
+`MAPS_API_KEY`, `HIST_API_BASE_URL` (release) e, para assinar o release, `HIST_KEYSTORE_PATH`,
+`HIST_KEYSTORE_PASSWORD`, `HIST_KEY_ALIAS` e `HIST_KEY_PASSWORD`.
