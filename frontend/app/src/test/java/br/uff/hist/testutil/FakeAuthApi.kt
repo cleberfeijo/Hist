@@ -35,6 +35,7 @@ class FakeAuthApi : HistApi by unsupportedApi() {
     var lastRegister: RegisterRequest? = null
     var loginHandler: suspend (String, String) -> TokenResponseDto = { _, _ -> tokenResponse() }
     var registerHandler: suspend (RegisterRequest) -> TokenResponseDto = { tokenResponse() }
+    var lastLogoutAuthorization: String? = null
     var logoutHandler: suspend () -> Response<Unit> = { Response.success(Unit) }
 
     override suspend fun login(username: String, password: String): TokenResponseDto {
@@ -48,8 +49,9 @@ class FakeAuthApi : HistApi by unsupportedApi() {
         return registerHandler(body)
     }
 
-    override suspend fun logout(): Response<Unit> {
+    override suspend fun logout(authorization: String): Response<Unit> {
         logoutCalls++
+        lastLogoutAuthorization = authorization
         return logoutHandler()
     }
 }

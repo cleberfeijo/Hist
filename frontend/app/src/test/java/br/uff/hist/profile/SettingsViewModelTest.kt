@@ -46,7 +46,7 @@ class SettingsViewModelTest {
         val caller = ApiCaller(HistJson, SessionEvents())
         return SettingsViewModel(
             AccountRepository(api, caller, store),
-            AuthRepository(authApi, caller, store),
+            AuthRepository(authApi, caller, store, kotlinx.coroutines.CoroutineScope(dispatcher)),
             store,
             ErrorMessages(ApplicationProvider.getApplicationContext()),
         )

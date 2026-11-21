@@ -6,6 +6,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.HTTP
 import retrofit2.http.PATCH
 import retrofit2.http.POST
@@ -20,8 +21,9 @@ interface HistApi {
     @POST("auth/register")
     suspend fun register(@Body body: RegisterRequest): TokenResponseDto
 
+    /** O token vai explícito: o logout roda depois de a sessão local ser apagada (o interceptor já não o conhece). */
     @POST("auth/logout")
-    suspend fun logout(): Response<Unit>
+    suspend fun logout(@Header("Authorization") authorization: String): Response<Unit>
 
     @GET("users/me")
     suspend fun me(): UserDto

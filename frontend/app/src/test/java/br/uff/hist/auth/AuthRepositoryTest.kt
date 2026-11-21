@@ -9,33 +9,60 @@ import br.uff.hist.core.session.SessionEvents
 import br.uff.hist.testutil.FakeAuthApi
 import br.uff.hist.testutil.FakeSessionStore
 import br.uff.hist.testutil.httpError
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import retrofit2.Response
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class AuthRepositoryTest {
     private val api = FakeAuthApi()
     private val store = FakeSessionStore(Session("old", User("1", "A", "B", "a@b.c", emptySet())))
-    private val repo = AuthRepository(api, ApiCaller(HistJson, SessionEvents()), store)
+
+    private fun repo(scope: CoroutineScope) = AuthRepository(api, ApiCaller(HistJson, SessionEvents()), store, scope)
+
+    @Test fun `logout limpa a sessao antes de a rede responder`() = runTest {
+        val gate = CompletableDeferred<Response<Unit>>()
+        api.logoutHandler = { gate.await() }
+        val repo = repo(CoroutineScope(StandardTestDispatcher(testScheduler)))
+
+        val result = repo.logout()
+
+        assertTrue(result is ApiResult.Success)
+        assertNull(store.session.value) // o servidor ainda nem foi chamado/respondeu
+        advanceUntilIdle()
+        assertEquals(1, api.logoutCalls)
+        gate.complete(Response.success(Unit))
+    }
+
+    @Test fun `logout avisa o servidor com o token que acabou de ser apagado`() = runTest {
+        val repo = repo(CoroutineScope(StandardTestDispatcher(testScheduler)))
+        repo.logout()
+        advanceUntilIdle()
+        assertEquals("Bearer old", api.lastLogoutAuthorization)
+    }
 
     @Test fun `logout limpa a sessao mesmo quando a API falha`() = runTest {
         api.logoutHandler = { throw httpError(500, "internal", "erro") }
-        val result = repo.logout()
-        assertTrue(result is ApiResult.Failure)
+        val repo = repo(CoroutineScope(StandardTestDispatcher(testScheduler)))
+        repo.logout()
+        advanceUntilIdle()
         assertNull(store.session.value)
         assertEquals(1, api.logoutCalls)
     }
 
     @Test fun `logout limpa a sessao sem internet`() = runTest {
         api.logoutHandler = { throw java.io.IOException("off") }
+        val repo = repo(CoroutineScope(StandardTestDispatcher(testScheduler)))
         repo.logout()
-        assertNull(store.session.value)
-    }
-
-    @Test fun `logout com sucesso limpa a sessao`() = runTest {
-        assertTrue(repo.logout() is ApiResult.Success)
+        advanceUntilIdle()
         assertNull(store.session.value)
     }
 }

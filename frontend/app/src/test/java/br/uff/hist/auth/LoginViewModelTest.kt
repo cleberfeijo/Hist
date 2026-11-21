@@ -28,7 +28,7 @@ class LoginViewModelTest {
     private val api = FakeAuthApi()
     private val store = FakeSessionStore()
     private val vm = LoginViewModel(
-        AuthRepository(api, ApiCaller(HistJson, SessionEvents()), store),
+        AuthRepository(api, ApiCaller(HistJson, SessionEvents()), store, kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Job())),
         ErrorMessages(ApplicationProvider.getApplicationContext()),
     )
 

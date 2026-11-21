@@ -58,10 +58,10 @@ class HistApiTest {
         assertEquals("Bearer abc", server.takeRequest().getHeader("Authorization"))
     }
 
-    @Test fun `sem token nao envia Authorization`() = runTest {
+    @Test fun `logout envia o token explicito mesmo sem token no interceptor`() = runTest {
         server.enqueue(MockResponse().setResponseCode(204))
-        api(null).logout()
-        assertEquals(null, server.takeRequest().getHeader("Authorization"))
+        api(null).logout("Bearer velho")
+        assertEquals("Bearer velho", server.takeRequest().getHeader("Authorization"))
     }
 
     @Test fun `nearby desserializa e mapeia categoria`() = runTest {
