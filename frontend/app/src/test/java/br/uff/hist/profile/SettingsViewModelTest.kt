@@ -137,7 +137,7 @@ class SettingsViewModelTest {
         vm.logout()
         advanceUntilIdle()
         assertNull(store.session.value)
-        assertEquals(1, authApi.logoutCalls)
+        assertEquals(3, authApi.logoutCalls) // sem rede: 3 tentativas de revogação
     }
 
     @Test fun `editar nome atualiza o usuario do store`() = runTest(dispatcher) {

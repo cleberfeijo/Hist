@@ -1,12 +1,12 @@
 # Copie para local.properties (não versionado) e preencha. Valores vazios são ignorados pelo build.
 
 # Caminho do Android SDK. O Android Studio preenche sozinho; fora dele, aponte para a pasta do SDK.
-sdk.dir=
+# sdk.dir=/caminho/do/Android/Sdk
 
 # Chave da Maps SDK for Android, em texto puro (sem ela o mapa não carrega)
 MAPS_API_KEY=
 
-# URL base da API no build release, ex.: https://api.exemplo.com/v1/ (termina com /v1/)
+# URL base da API no build release, ex.: https://api.exemplo.com/v1/ (termina com /v1/; precisa ser https, o release bloqueia HTTP sem TLS)
 HIST_API_BASE_URL=
 
 # URL base da API no debug; padrão http://10.0.2.2:8080/v1/ (emulador).

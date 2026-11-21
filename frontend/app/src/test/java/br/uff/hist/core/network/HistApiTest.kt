@@ -64,6 +64,12 @@ class HistApiTest {
         assertEquals("Bearer velho", server.takeRequest().getHeader("Authorization"))
     }
 
+    @Test fun `Authorization explicito nao e reescrito pelo token atual`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(204))
+        api("novo").logout("Bearer velho")
+        assertEquals("Bearer velho", server.takeRequest().getHeader("Authorization"))
+    }
+
     @Test fun `nearby desserializa e mapeia categoria`() = runTest {
         server.enqueue(
             MockResponse().setBody(

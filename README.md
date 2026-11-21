@@ -96,7 +96,7 @@ cp local.properties.example local.properties   # não versionado; veja os coment
 ```
 
 O arquivo sai em `frontend/app/build/outputs/bundle/release/app-release.aab`. Defina
-`HIST_API_BASE_URL` com a URL real da API. Sem `HIST_KEYSTORE_PATH` o AAB sai **sem assinatura**;
+`HIST_API_BASE_URL` com a URL real da API, **obrigatoriamente `https://`** (o tráfego sem TLS é bloqueado no release). Sem `HIST_KEYSTORE_PATH` o AAB sai **sem assinatura**;
 para assinar, informe `HIST_KEYSTORE_PATH` (arquivo existente), `HIST_KEYSTORE_PASSWORD`,
 `HIST_KEY_ALIAS` e `HIST_KEY_PASSWORD` (se o caminho existir e faltar alguma das três, o build falha).
 Nunca versione a keystore nem o `local.properties`.
@@ -106,6 +106,7 @@ Nunca versione a keystore nem o `local.properties`.
 - A tolerância de 5 minutos do chat em segundo plano é um teto, não uma garantia: o Android pode
   cortar a rede antes. O app reconecta se o usuário estiver a até 200 m, e as mensagens trocadas
   durante a lacuna são perdidas.
+- Se o aparelho ficar sem internet ao tocar em "Sair", a revogação do token no servidor pode não acontecer (o app tenta 3 vezes e desiste); o token antigo continua válido até expirar (7 dias).
 - GPS falso pode burlar o raio; o app bloqueia as localizações simuladas que consegue detectar.
 - O token de sessão fica no armazenamento privado do app, sem criptografia adicional (backup desativado).
 - O mapa, o comportamento do teclado e o fluxo real de GPS não foram exercitados em aparelho pelos

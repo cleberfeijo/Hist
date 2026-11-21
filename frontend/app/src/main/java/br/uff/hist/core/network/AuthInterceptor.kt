@@ -12,11 +12,14 @@ class AuthInterceptor @Inject constructor(
     private val tokenProvider: TokenProvider,
 ) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
+        val original = chain.request()
+        // Quem já mandou o próprio Authorization (ex.: logout com o token antigo) não é reescrito.
+        if (original.header("Authorization") != null) return chain.proceed(original)
         val token = tokenProvider.currentToken()
         val request = if (token.isNullOrEmpty()) {
-            chain.request()
+            original
         } else {
-            chain.request().newBuilder().header("Authorization", "Bearer $token").build()
+            original.newBuilder().header("Authorization", "Bearer $token").build()
         }
         return chain.proceed(request)
     }
