@@ -19,6 +19,11 @@ fun localConfig(name: String): String? =
     localProps.getProperty(name)?.takeIf { it.isNotBlank() }
         ?: System.getenv(name)?.takeIf { it.isNotBlank() }
 
+fun String.asBuildConfigString(): String =
+    "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
+val defaultDebugBaseUrl = "http://10.0.2.2:8080/v1/"
+
 android {
     namespace = "br.uff.hist"
     compileSdk = 36
@@ -34,6 +39,9 @@ android {
     }
 
     val keystorePath = localConfig("HIST_KEYSTORE_PATH")
+    if (keystorePath != null && !file(keystorePath).exists()) {
+        logger.warn("HIST_KEYSTORE_PATH ($keystorePath) não existe: o release será gerado sem assinatura.")
+    }
     signingConfigs {
         if (keystorePath != null && file(keystorePath).exists()) {
             val required = listOf("HIST_KEYSTORE_PASSWORD", "HIST_KEY_ALIAS", "HIST_KEY_PASSWORD")
@@ -56,12 +64,15 @@ android {
     buildTypes {
         debug {
             // Emulador acessa o host pelo 10.0.2.2.
-            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080/v1/\"")
+            // HIST_DEBUG_API_BASE_URL permite apontar o debug para outro host (ex.: aparelho físico).
+            val debugBaseUrl = localConfig("HIST_DEBUG_API_BASE_URL") ?: defaultDebugBaseUrl
+            buildConfigField("String", "API_BASE_URL", debugBaseUrl.asBuildConfigString())
+            buildConfigField("String", "DEFAULT_DEBUG_API_BASE_URL", defaultDebugBaseUrl.asBuildConfigString())
         }
         release {
             val releaseBaseUrl = localConfig("HIST_API_BASE_URL") ?: "https://api.hist.invalid/v1/"
-            val escapedBaseUrl = releaseBaseUrl.replace("\\", "\\\\").replace("\"", "\\\"")
-            buildConfigField("String", "API_BASE_URL", "\"$escapedBaseUrl\"")
+            buildConfigField("String", "API_BASE_URL", releaseBaseUrl.asBuildConfigString())
+            buildConfigField("String", "DEFAULT_DEBUG_API_BASE_URL", defaultDebugBaseUrl.asBuildConfigString())
             isMinifyEnabled = false
             signingConfigs.findByName("release")?.let { signingConfig = it }
         }

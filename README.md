@@ -86,9 +86,8 @@ cp local.properties.example local.properties   # não versionado; veja os coment
 
 - `MAPS_API_KEY` (em `local.properties` ou no ambiente): chave da Maps SDK for Android; sem ela o mapa não carrega.
 - **Emulador:** nada a mudar, o debug fala com `http://10.0.2.2:8080/v1/` (o host visto pelo emulador).
-- **Aparelho físico na mesma rede:** defina `HIST_API_BASE_URL=http://<IP da máquina>:8080/v1/`. Essa
-  variável vale para o build release; para um debug no aparelho, ajuste temporariamente o
-  `API_BASE_URL` do `debug` em `app/build.gradle.kts`.
+- **Aparelho físico na mesma rede:** defina `HIST_DEBUG_API_BASE_URL=http://<IP-da-máquina>:8080/v1/`
+  em `frontend/local.properties` (vale para o debug) e `HIST_API_BASE_URL` para o release.
 
 ### Gerar o AAB de release
 
