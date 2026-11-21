@@ -126,6 +126,8 @@ private fun <T> QueueList(
     when {
         list.items.isEmpty() && !list.loaded && !list.failed -> LoadingState()
         list.items.isEmpty() && list.failed -> ErrorState(stringResource(R.string.error_unknown), onRetry = onLoadMore)
+        // Esvaziada por decisões, mas o servidor ainda tem mais: a busca já está a caminho.
+        list.items.isEmpty() && list.hasMore -> LoadingState()
         list.items.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(stringResource(R.string.moderation_empty), color = LocalSecondaryText.current, modifier = Modifier.padding(24.dp))
         }
@@ -149,16 +151,21 @@ private fun <T> QueueList(
 
 @Composable
 private fun LandmarkRow(landmark: Landmark, onClick: () -> Unit) {
-    // O ponto não traz nome do autor nem data na API: só se sabe se veio do crawler (sem autor).
-    val byline = if (landmark.createdBy == null) stringResource(R.string.moderation_imported) else null
+    // A API não expõe o nome do autor do ponto: só se sabe se veio do crawler (sem autor).
+    val date = landmark.createdAt?.let { relativeDate(it) }
+    val byline = listOfNotNull(
+        if (landmark.createdBy == null) stringResource(R.string.moderation_imported) else null,
+        date,
+    ).joinToString(" · ").ifEmpty { null }
     RowLayout(landmark.name, stringResource(landmark.category.label), byline, onClick)
 }
 
+private fun relativeDate(at: java.time.Instant): String =
+    DateUtils.getRelativeTimeSpanString(at.toEpochMilli(), System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
+
 @Composable
 private fun CuriosityRow(curiosity: Curiosity, onClick: () -> Unit) {
-    val date = DateUtils.getRelativeTimeSpanString(
-        curiosity.createdAt.toEpochMilli(), System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS,
-    )
+    val date = relativeDate(curiosity.createdAt)
     val author = curiosity.authorName ?: stringResource(R.string.moderation_imported)
     RowLayout(curiosity.text.take(SNIPPET_LENGTH), curiosity.landmarkName, "$author · $date", onClick)
 }

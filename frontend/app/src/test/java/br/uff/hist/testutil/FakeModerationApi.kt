@@ -18,9 +18,14 @@ class FakeModerationApi : HistApi by unsupportedApi() {
     /** Se definido, a decisão espera por este bloqueio (para simular toque duplo). */
     var gate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
 
+    val landmarkPageCalls = mutableListOf<Int>()
+
+    /** Paginação por deslocamento, como o servidor: a fila encolhe quando se edita [landmarkQueue]. */
     override suspend fun moderationLandmarks(status: String, page: Int, pageSize: Int): PageDto<LandmarkDto> {
         queueStatuses += status
-        return PageDto(landmarkQueue, landmarkQueue.size, 1, pageSize)
+        landmarkPageCalls += page
+        val items = landmarkQueue.drop((page - 1) * pageSize).take(pageSize)
+        return PageDto(items, landmarkQueue.size, page, pageSize)
     }
 
     override suspend fun moderationCuriosities(status: String, page: Int, pageSize: Int): PageDto<CuriosityDto> {

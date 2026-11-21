@@ -58,6 +58,14 @@ internal class PagedLoader<T>(
     private var more = true
     private var job: Job? = null
 
+    val loading: Boolean get() = job?.isActive == true
+
+    /** Recomeça da página 1; os itens já carregados ficam e o próximo resultado é mesclado sem duplicar. */
+    fun reset() {
+        nextPage = 1
+        more = true
+    }
+
     fun loadMore() {
         if (!more || job?.isActive == true) return
         update { it.copy(failed = false) }

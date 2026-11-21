@@ -187,4 +187,84 @@ class ModerationViewModelTest {
         assertNotNull(vm.uiState.value.landmark)
         assertFalse(vm.uiState.value.loadFailed)
     }
+
+    private fun pending(range: IntRange) = range.map { landmarkDto("p$it", "pending") }
+
+    @Test fun `decidir toda a primeira pagina pede a pagina 1 de novo e traz os itens deslocados`() = runTest(dispatcher) {
+        api.landmarkQueue = pending(1..25)
+        val vm = queue()
+        advanceUntilIdle()
+        assertEquals(20, vm.uiState.value.landmarks.items.size)
+        // O servidor passa a ter só os 5 restantes depois das 20 decisões.
+        api.landmarkQueue = pending(21..25)
+        (1..20).forEach { vm.decided("p$it", "Aprovado.") }
+        advanceUntilIdle()
+        assertEquals(listOf(1, 1), api.landmarkPageCalls)
+        assertEquals((21..25).map { "p$it" }, vm.uiState.value.landmarks.items.map { it.id })
+        assertFalse(vm.uiState.value.landmarks.hasMore)
+    }
+
+    @Test fun `lista esvaziada com mais paginas nao fica no estado vazio`() = runTest(dispatcher) {
+        api.landmarkQueue = pending(1..25)
+        val vm = queue()
+        advanceUntilIdle()
+        (1..20).forEach { vm.decided("p$it", null) }
+        // Antes de a nova busca terminar: sem itens, mas ainda há mais.
+        val s = vm.uiState.value.landmarks
+        assertTrue(s.items.isEmpty() && s.hasMore)
+    }
+
+    @Test fun `depois de decisoes o proximo carregamento recomeca da pagina 1 sem pular itens`() = runTest(dispatcher) {
+        api.landmarkQueue = pending(1..25)
+        val vm = queue()
+        advanceUntilIdle()
+        api.landmarkQueue = pending(4..25)
+        (1..3).forEach { vm.decided("p$it", null) }
+        vm.loadMoreLandmarks()
+        advanceUntilIdle()
+        assertEquals(listOf(1, 1), api.landmarkPageCalls)
+        assertEquals((4..23).map { "p$it" }, vm.uiState.value.landmarks.items.map { it.id })
+        vm.loadMoreLandmarks()
+        advanceUntilIdle()
+        assertEquals(listOf(1, 1, 2), api.landmarkPageCalls)
+        assertEquals((4..25).map { "p$it" }, vm.uiState.value.landmarks.items.map { it.id })
+    }
+
+    @Test fun `conflict tambem vira ja revisado`() = runTest(dispatcher) {
+        api.decisionFailure = httpError(409, "conflict", "já decidido")
+        val vm = detail()
+        advanceUntilIdle()
+        vm.approve()
+        advanceUntilIdle()
+        assertEquals("Este item já foi revisado por outra pessoa.", vm.uiState.value.decision?.notice)
+        assertNull(vm.uiState.value.error)
+    }
+
+    @Test fun `ponto da fila expoe a data de criacao`() = runTest(dispatcher) {
+        api.landmarkQueue = listOf(landmarkDto("a", "pending").copy(createdAt = "2026-01-01T10:00:00Z"))
+        val vm = queue()
+        advanceUntilIdle()
+        assertEquals(java.time.Instant.parse("2026-01-01T10:00:00Z"), vm.uiState.value.landmarks.items.single().createdAt)
+    }
+
+    @Test fun `not_found ao carregar o detalhe vira indisponivel e nao decisao`() = runTest(dispatcher) {
+        api.detailFailure = httpError(404, "not_found", "x")
+        val vm = detail()
+        advanceUntilIdle()
+        val s = vm.uiState.value
+        assertTrue(s.unavailable)
+        assertNull(s.decision)
+        assertFalse(s.loading)
+        assertFalse(s.loadFailed)
+    }
+
+    @Test fun `not_found ao decidir continua sendo decisao ja revisada`() = runTest(dispatcher) {
+        api.decisionFailure = httpError(404, "not_found", "x")
+        val vm = detail()
+        advanceUntilIdle()
+        assertFalse(vm.uiState.value.unavailable)
+        vm.approve()
+        advanceUntilIdle()
+        assertNotNull(vm.uiState.value.decision)
+    }
 }

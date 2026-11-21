@@ -34,6 +34,7 @@ data class Landmark(
     val rejectionReason: String?,
     val curiosityCount: Int,
     val createdBy: String?,
+    val createdAt: Instant? = null,
 )
 
 data class Curiosity(

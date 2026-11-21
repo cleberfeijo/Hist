@@ -50,6 +50,8 @@ data class LandmarkDto(
     @SerialName("rejection_reason") val rejectionReason: String? = null,
     @SerialName("created_by") val createdBy: String? = null,
     @SerialName("curiosity_count") val curiosityCount: Int = 0,
+    /** Ausente nas listagens públicas mais antigas; a fila de moderação usa para mostrar a data. */
+    @SerialName("created_at") val createdAt: String? = null,
 )
 
 @Serializable

@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 const val REASON_MIN_LENGTH = 3
 const val REASON_MAX_LENGTH = 500
 private const val NOT_FOUND = "not_found"
+private const val CONFLICT = "conflict"
 
 fun isValidReason(reason: String): Boolean = reason.trim().length in REASON_MIN_LENGTH..REASON_MAX_LENGTH
 
@@ -49,21 +50,46 @@ class ModerationQueueViewModel @Inject constructor(repository: ModerationReposit
         viewModelScope, repository::curiosityQueue, { it.id },
     ) { f -> _uiState.update { it.copy(curiosities = f(it.curiosities)) } }
 
+    // Decisões desde a última busca: o servidor encolheu a fila, então a paginação por deslocamento pularia itens.
+    private var landmarkDecisions = 0
+    private var curiosityDecisions = 0
+
     init {
         landmarkLoader.loadMore()
         curiosityLoader.loadMore()
     }
 
-    fun loadMoreLandmarks() = landmarkLoader.loadMore()
+    fun loadMoreLandmarks() {
+        if (landmarkDecisions > 0 && !landmarkLoader.loading) {
+            landmarkLoader.reset()
+            landmarkDecisions = 0
+        }
+        landmarkLoader.loadMore()
+    }
 
-    fun loadMoreCuriosities() = curiosityLoader.loadMore()
+    fun loadMoreCuriosities() {
+        if (curiosityDecisions > 0 && !curiosityLoader.loading) {
+            curiosityLoader.reset()
+            curiosityDecisions = 0
+        }
+        curiosityLoader.loadMore()
+    }
 
-    fun decided(id: String, notice: String?) = _uiState.update {
-        it.copy(
-            landmarks = it.landmarks.copy(items = it.landmarks.items.filterNot { l -> l.id == id }),
-            curiosities = it.curiosities.copy(items = it.curiosities.items.filterNot { c -> c.id == id }),
-            notice = notice,
-        )
+    fun decided(id: String, notice: String?) {
+        val before = _uiState.value
+        if (before.landmarks.items.any { it.id == id }) landmarkDecisions++
+        if (before.curiosities.items.any { it.id == id }) curiosityDecisions++
+        _uiState.update {
+            it.copy(
+                landmarks = it.landmarks.copy(items = it.landmarks.items.filterNot { l -> l.id == id }),
+                curiosities = it.curiosities.copy(items = it.curiosities.items.filterNot { c -> c.id == id }),
+                notice = notice,
+            )
+        }
+        // Lista esvaziada com mais páginas no servidor: busca já, senão a tela ficaria sem sentinela para pedir mais.
+        val now = _uiState.value
+        if (now.landmarks.items.isEmpty() && now.landmarks.hasMore) loadMoreLandmarks()
+        if (now.curiosities.items.isEmpty() && now.curiosities.hasMore) loadMoreCuriosities()
     }
 
     fun dismissNotice() = _uiState.update { it.copy(notice = null) }
@@ -77,6 +103,8 @@ data class Decision(val id: String, val notice: String)
 data class ModerationDetailUiState(
     val loading: Boolean = true,
     val loadFailed: Boolean = false,
+    /** O item não existe mais (404 ao abrir): a fila se atualiza sozinha, aqui só se oferece voltar. */
+    val unavailable: Boolean = false,
     val landmark: Landmark? = null,
     val curiosity: Curiosity? = null,
     val rejectDialog: Boolean = false,
@@ -130,7 +158,9 @@ class ModerationDetailViewModel @Inject constructor(
     }
 
     private fun loadFailure(error: AppError) {
-        if (error.isNotFound()) finishAlreadyReviewed() else _uiState.update { it.copy(loading = false, loadFailed = true) }
+        _uiState.update {
+            if (error.isNotFound()) it.copy(loading = false, unavailable = true) else it.copy(loading = false, loadFailed = true)
+        }
     }
 
     fun approve() {
@@ -179,7 +209,7 @@ class ModerationDetailViewModel @Inject constructor(
                     )
                 }
                 is ApiResult.Failure ->
-                    if (result.error.isNotFound()) {
+                    if (result.error.isNotFound() || result.error.isConflict()) {
                         finishAlreadyReviewed()
                     } else {
                         _uiState.update { it.copy(submitting = false, error = messages.of(result.error)) }
@@ -197,4 +227,6 @@ class ModerationDetailViewModel @Inject constructor(
     }
 
     private fun AppError.isNotFound() = this is AppError.Api && code == NOT_FOUND
+
+    private fun AppError.isConflict() = this is AppError.Api && code == CONFLICT
 }

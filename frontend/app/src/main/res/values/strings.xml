@@ -35,7 +35,6 @@
     <string name="back">Voltar</string>
     <string name="tab_explore">Explorar</string>
     <string name="tab_profile">Perfil</string>
-    <string name="placeholder_soon">Em breve</string>
     <string name="onboarding_continue">Continuar</string>
     <string name="onboarding_title">Descubra a história ao seu redor</string>
     <string name="onboarding_body">O Hist usa sua localização para mostrar os pontos históricos perto de você e liberar o chat de cada lugar quando você estiver a até 200 m. A localização só é usada com o app aberto.</string>
@@ -141,5 +140,6 @@
     <string name="moderation_rejected">Rejeitado.</string>
     <string name="moderation_already_reviewed">Este item já foi revisado por outra pessoa.</string>
     <string name="moderation_landmark_of">Ponto: %1$s</string>
+    <string name="moderation_unavailable">Este item não está mais disponível.</string>
     <string name="moderation_imported">Importado</string>
 </resources>

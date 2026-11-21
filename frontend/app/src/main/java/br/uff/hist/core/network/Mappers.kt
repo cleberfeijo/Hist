@@ -39,6 +39,7 @@ fun LandmarkDto.toDomain() = Landmark(
     rejectionReason = rejectionReason,
     curiosityCount = curiosityCount,
     createdBy = createdBy,
+    createdAt = createdAt?.let { runCatching { OffsetDateTime.parse(it).toInstant() }.getOrNull() },
 )
 
 fun CuriosityDto.toDomain() = Curiosity(

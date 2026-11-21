@@ -123,6 +123,14 @@ fun ModerationDetailContent(
         val landmark = state.landmark
         val curiosity = state.curiosity
         when {
+            state.unavailable -> Column(
+                Modifier.padding(padding).fillMaxSize().padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(stringResource(R.string.moderation_unavailable), style = MaterialTheme.typography.bodyLarge)
+                Button(onClick = onBack) { Text(stringResource(R.string.back)) }
+            }
             state.loadFailed -> ErrorState(stringResource(R.string.error_unknown), onRetry = onRetry, modifier = Modifier.padding(padding))
             landmark == null && curiosity == null -> LoadingState(Modifier.padding(padding))
             else -> Column(

@@ -135,7 +135,7 @@ fun HistNavHost(modifier: Modifier = Modifier, viewModel: RootViewModel = hiltVi
                 ModerationDetailScreen(
                     kind = ModerationKind.LANDMARK,
                     onBack = { navController.popBackStack() },
-                    onDecided = { navController.deliverDecision(it) },
+                    onDecided = { navController.deliverDecision<ModerationLandmark>(it) },
                 )
             }
         }
@@ -144,7 +144,7 @@ fun HistNavHost(modifier: Modifier = Modifier, viewModel: RootViewModel = hiltVi
                 ModerationDetailScreen(
                     kind = ModerationKind.CURIOSITY,
                     onBack = { navController.popBackStack() },
-                    onDecided = { navController.deliverDecision(it) },
+                    onDecided = { navController.deliverDecision<ModerationCuriosity>(it) },
                 )
             }
         }
@@ -161,8 +161,10 @@ private fun ModeratorOnly(isModerator: Boolean?, onDenied: () -> Unit, content: 
     }
 }
 
-private fun NavController.deliverDecision(decision: Decision) {
-    previousBackStackEntry?.savedStateHandle?.let {
+private inline fun <reified T : Any> NavController.deliverDecision(decision: Decision) {
+    // Só o detalhe no topo entrega e sai; um callback atrasado não deve mexer em outra tela.
+    if (currentBackStackEntry?.destination?.hasRoute<T>() != true) return
+    runCatching { getBackStackEntry<ModerationQueue>() }.getOrNull()?.savedStateHandle?.let {
         it[DECISION_NOTICE_KEY] = decision.notice
         it[DECISION_ID_KEY] = decision.id
     }

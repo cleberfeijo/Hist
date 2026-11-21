@@ -2,6 +2,8 @@ package br.uff.hist.moderation
 
 import androidx.compose.material3.Text
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import br.uff.hist.core.designsystem.HistTheme
@@ -43,6 +45,12 @@ class ModerationContentTest {
         )
         compose.onNodeWithText("Ponto a").performClick()
         assertEquals(listOf("p:a"), opened)
+    }
+
+    @Test fun `ponto importado mostra Importado e a data`() {
+        val l = landmarkDto("a", "pending").copy(createdAt = "2020-01-01T10:00:00Z").toDomain()
+        showQueue(ModerationQueueUiState(landmarks = ListState(items = listOf(l), loaded = true)))
+        compose.onNodeWithText("Importado · ", substring = true).assertExists()
     }
 
     @Test fun `curiosidade da fila corta o trecho em 120 e mostra Importado sem autor`() {
@@ -104,5 +112,24 @@ class ModerationContentTest {
         compose.onNodeWithText("ok").assertExists()
         compose.onNodeWithText("O motivo precisa ter entre 3 e 500 caracteres.").assertExists()
         compose.onNodeWithText("Cancelar").assertExists()
+        compose.onAllNodesWithText("Rejeitar").onLast().performClick()
+        assertEquals(1, confirmed.size)
+    }
+
+    @Test fun `item indisponivel mostra aviso e volta`() {
+        var back = 0
+        compose.setContent {
+            HistTheme {
+                ModerationDetailContent(
+                    state = ModerationDetailUiState(loading = false, unavailable = true), onBack = { back++ },
+                    onApprove = {}, onAskReject = {}, onReasonChange = {}, onConfirmReject = {},
+                    onDismissReject = {}, onRetry = {}, mapContent = {},
+                )
+            }
+        }
+        compose.onNodeWithText("Este item não está mais disponível.").assertExists()
+        compose.onNodeWithText("Aprovar").assertDoesNotExist()
+        compose.onNodeWithText("Voltar").performClick()
+        assertEquals(1, back)
     }
 }
