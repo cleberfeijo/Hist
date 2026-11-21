@@ -36,6 +36,14 @@ android {
     val keystorePath = localConfig("HIST_KEYSTORE_PATH")
     signingConfigs {
         if (keystorePath != null && file(keystorePath).exists()) {
+            val required = listOf("HIST_KEYSTORE_PASSWORD", "HIST_KEY_ALIAS", "HIST_KEY_PASSWORD")
+            val missing = required.filter { localConfig(it) == null }
+            if (missing.isNotEmpty()) {
+                throw GradleException(
+                    "HIST_KEYSTORE_PATH aponta para uma keystore, mas faltam: ${missing.joinToString(", ")}. " +
+                        "Defina-as em local.properties ou no ambiente (ou remova HIST_KEYSTORE_PATH para gerar o release sem assinatura).",
+                )
+            }
             create("release") {
                 storeFile = file(keystorePath)
                 storePassword = localConfig("HIST_KEYSTORE_PASSWORD")
@@ -52,7 +60,8 @@ android {
         }
         release {
             val releaseBaseUrl = localConfig("HIST_API_BASE_URL") ?: "https://api.hist.invalid/v1/"
-            buildConfigField("String", "API_BASE_URL", "\"$releaseBaseUrl\"")
+            val escapedBaseUrl = releaseBaseUrl.replace("\\", "\\\\").replace("\"", "\\\"")
+            buildConfigField("String", "API_BASE_URL", "\"$escapedBaseUrl\"")
             isMinifyEnabled = false
             signingConfigs.findByName("release")?.let { signingConfig = it }
         }

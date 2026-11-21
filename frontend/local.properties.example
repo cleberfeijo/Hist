@@ -1,0 +1,17 @@
+# Copie para local.properties (não versionado) e preencha. Todas as chaves são opcionais.
+
+# Caminho do Android SDK (o Android Studio preenche sozinho)
+sdk.dir=/caminho/para/Android/Sdk
+
+# Chave da Maps SDK for Android (sem ela o mapa não carrega)
+MAPS_API_KEY=
+
+# URL base da API no build release (termina com /v1/). O debug usa http://10.0.2.2:8080/v1/
+HIST_API_BASE_URL=
+
+# Assinatura do release: sem HIST_KEYSTORE_PATH o AAB sai sem assinatura.
+# Se o caminho existir, as três chaves abaixo passam a ser obrigatórias.
+HIST_KEYSTORE_PATH=
+HIST_KEYSTORE_PASSWORD=
+HIST_KEY_ALIAS=
+HIST_KEY_PASSWORD=

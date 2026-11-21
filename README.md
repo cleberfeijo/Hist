@@ -79,11 +79,35 @@ Detalhes dos endpoints e do protocolo do chat: [`docs/api.md`](docs/api.md).
 Pré-requisitos: JDK 17 e Android SDK (plataforma 36). Suba a API (seção acima) e, a partir de `frontend/`:
 
 ```bash
+cp local.properties.example local.properties   # não versionado; veja os comentários no arquivo
 ./gradlew :app:testDebugUnitTest               # testes
 ./gradlew :app:lintDebug :app:assembleDebug    # lint + APK de debug
 ```
 
-No debug o app fala com `http://10.0.2.2:8080/v1/` (o host visto pelo emulador). Configurações
-locais opcionais ficam em `frontend/local.properties` (não versionado) ou em variáveis de ambiente:
-`MAPS_API_KEY`, `HIST_API_BASE_URL` (release) e, para assinar o release, `HIST_KEYSTORE_PATH`,
-`HIST_KEYSTORE_PASSWORD`, `HIST_KEY_ALIAS` e `HIST_KEY_PASSWORD`.
+- `MAPS_API_KEY` (em `local.properties` ou no ambiente): chave da Maps SDK for Android; sem ela o mapa não carrega.
+- **Emulador:** nada a mudar, o debug fala com `http://10.0.2.2:8080/v1/` (o host visto pelo emulador).
+- **Aparelho físico na mesma rede:** defina `HIST_API_BASE_URL=http://<IP da máquina>:8080/v1/`. Essa
+  variável vale para o build release; para um debug no aparelho, ajuste temporariamente o
+  `API_BASE_URL` do `debug` em `app/build.gradle.kts`.
+
+### Gerar o AAB de release
+
+```bash
+./gradlew :app:bundleRelease
+```
+
+O arquivo sai em `frontend/app/build/outputs/bundle/release/app-release.aab`. Defina
+`HIST_API_BASE_URL` com a URL real da API. Sem `HIST_KEYSTORE_PATH` o AAB sai **sem assinatura**;
+para assinar, informe `HIST_KEYSTORE_PATH` (arquivo existente), `HIST_KEYSTORE_PASSWORD`,
+`HIST_KEY_ALIAS` e `HIST_KEY_PASSWORD` (se o caminho existir e faltar alguma das três, o build falha).
+Nunca versione a keystore nem o `local.properties`.
+
+### Limitações conhecidas
+
+- A tolerância de 5 minutos do chat em segundo plano é um teto, não uma garantia: o Android pode
+  cortar a rede antes. O app reconecta se o usuário estiver a até 200 m, e as mensagens trocadas
+  durante a lacuna são perdidas.
+- GPS falso pode burlar o raio; o app bloqueia as localizações simuladas que consegue detectar.
+- O token de sessão fica no armazenamento privado do app, sem criptografia adicional (backup desativado).
+- O mapa, o comportamento do teclado e o fluxo real de GPS não foram exercitados em aparelho pelos
+  testes automatizados: precisam de conferência manual, com uma chave da Maps API.
