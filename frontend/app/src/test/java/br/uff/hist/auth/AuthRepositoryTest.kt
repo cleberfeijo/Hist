@@ -23,6 +23,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import okhttp3.ResponseBody.Companion.toResponseBody
 import retrofit2.Response
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -59,7 +60,7 @@ class AuthRepositoryTest {
         repo.logout()
         advanceUntilIdle()
         assertNull(store.session.value)
-        assertEquals(1, api.logoutCalls)
+        assertEquals(3, api.logoutCalls) // 5xx é passageiro: 3 tentativas
     }
 
     @Test fun `logout limpa a sessao sem internet`() = runTest {
@@ -103,6 +104,31 @@ class AuthRepositoryTest {
         advanceUntilIdle()
         assertEquals(3, api.logoutCalls)
         assertEquals("Bearer old", api.lastLogoutAuthorization)
+    }
+
+    @Test fun `503 e depois 204 faz duas chamadas`() = runTest {
+        var n = 0
+        api.logoutHandler = {
+            if (n++ == 0) Response.error(503, "".toResponseBody(null)) else Response.success(204, Unit)
+        }
+        val repo = repo(CoroutineScope(StandardTestDispatcher(testScheduler)))
+        repo.logout()
+        advanceUntilIdle()
+        assertEquals(2, api.logoutCalls)
+    }
+
+    @Test fun `429 repete e 401 como resposta nao repete`() = runTest {
+        api.logoutHandler = { Response.error(429, "".toResponseBody(null)) }
+        repo(CoroutineScope(StandardTestDispatcher(testScheduler))).logout()
+        advanceUntilIdle()
+        assertEquals(3, api.logoutCalls)
+    }
+
+    @Test fun `resposta 401 devolvida como Response nao repete`() = runTest {
+        api.logoutHandler = { Response.error(401, "".toResponseBody(null)) }
+        repo(CoroutineScope(StandardTestDispatcher(testScheduler))).logout()
+        advanceUntilIdle()
+        assertEquals(1, api.logoutCalls)
     }
 
     @Test fun `repeticao para quando a rede volta`() = runTest {

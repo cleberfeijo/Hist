@@ -50,23 +50,25 @@ class AuthRepository @Inject constructor(
 
     /**
      * Revogação "melhor esforço": direto na API (sem [ApiCaller]) para que um 401 do token antigo nunca dispare
-     * `notifyExpired()` e derrube uma sessão nova. Repete só em falha de rede; qualquer resposta HTTP encerra.
+     * `notifyExpired()` e derrube uma sessão nova. Repete (até 3 tentativas) em falha de rede, 5xx e 429; qualquer outra resposta encerra.
      */
     private suspend fun revokeOnServer(token: String) {
         for ((index, waitMs) in LOGOUT_RETRY_DELAYS_MS.withIndex()) {
-            try {
-                api.logout("Bearer $token")
-                return
+            val retry = try {
+                val code = api.logout("Bearer $token").code()
+                // 2xx e 4xx (exceto 429): o servidor decidiu; 5xx e 429 são passageiros como a falta de rede
+                code >= 500 || code == 429
             } catch (e: CancellationException) {
                 throw e
             } catch (e: HttpException) {
-                return
+                e.code() >= 500 || e.code() == 429
             } catch (e: IOException) {
-                if (index == LOGOUT_RETRY_DELAYS_MS.lastIndex) return
-                delay(waitMs)
+                true
             } catch (e: Exception) {
-                return
+                false
             }
+            if (!retry || index == LOGOUT_RETRY_DELAYS_MS.lastIndex) return
+            delay(waitMs)
         }
     }
 
