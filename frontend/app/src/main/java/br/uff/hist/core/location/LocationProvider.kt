@@ -13,7 +13,11 @@ data class LocationFix(val point: GeoPoint, val accuracyM: Float, val isMock: Bo
 enum class LocationPriority { BALANCED, HIGH }
 
 interface LocationProvider {
+    /** FINE ou COARSE concedida. */
     fun hasPermission(): Boolean
+
+    /** FINE concedida (só COARSE = localização aproximada, insuficiente para o chat). */
+    fun hasPreciseLocation(): Boolean
 
     /** Completa vazio sem permissão. */
     fun updates(priority: LocationPriority, intervalMs: Long): Flow<LocationFix>

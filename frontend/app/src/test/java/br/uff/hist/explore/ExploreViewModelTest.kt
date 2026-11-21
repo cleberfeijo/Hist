@@ -116,6 +116,48 @@ class ExploreViewModelTest {
         assertFalse(items[1].chatAvailable)
     }
 
+    @Test fun `so localizacao aproximada nao libera chat e sinaliza precisao`() = runTest(dispatcher) {
+        location.setPrecise(false)
+        val near = north(87.0)
+        api.handler = { listOf(dto("perto", near.latitude, near.longitude)) }
+        val vm = started(vm())
+        location.emit(fix(USER))
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.hasPermission)
+        assertFalse(vm.uiState.value.hasPreciseLocation)
+        assertFalse(vm.uiState.value.sheetItems.single().chatAvailable)
+        location.setPrecise(true)
+        vm.refreshPermission()
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.hasPreciseLocation)
+        assertTrue(vm.uiState.value.sheetItems.single().chatAvailable)
+    }
+
+    @Test fun `sheet so conta como carregado depois da primeira busca ao redor do usuario`() = runTest(dispatcher) {
+        val vm = started(vm())
+        assertFalse(vm.uiState.value.sheetLoaded) // com permissao, ainda sem posicao
+        location.emit(fix(USER))
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.sheetLoaded)
+        assertTrue(vm.uiState.value.sheetItems.isEmpty())
+    }
+
+    @Test fun `sem permissao o sheet carrega com a busca da camera`() = runTest(dispatcher) {
+        location.setPermission(false)
+        val vm = started(vm())
+        assertFalse(vm.uiState.value.sheetLoaded)
+        vm.onCameraIdle(USER, 2000.0)
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.sheetLoaded)
+    }
+
+    @Test fun `centralizar no usuario fica guardado no estado`() = runTest(dispatcher) {
+        val vm = started(vm())
+        assertFalse(vm.uiState.value.centeredOnUser)
+        vm.onCenteredOnUser()
+        assertTrue(vm.uiState.value.centeredOnUser)
+    }
+
     @Test fun `onCameraIdle limita o raio a 50 km e nao altera o sheet`() = runTest(dispatcher) {
         val near = north(87.0)
         api.handler = { c ->

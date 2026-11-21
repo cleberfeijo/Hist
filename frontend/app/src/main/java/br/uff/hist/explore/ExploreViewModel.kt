@@ -31,11 +31,17 @@ enum class SheetTitle { NEAR_YOU, THIS_AREA }
 data class ExploreUiState(
     val mode: ExploreMode = ExploreMode.MAP,
     val hasPermission: Boolean = false,
+    /** Permissão FINE: com só COARSE o chat não é oferecido. */
+    val hasPreciseLocation: Boolean = false,
     val user: GeoPoint? = null,
     val initialCamera: GeoPoint = RIO_DAS_OSTRAS,
     val sheetTitle: SheetTitle = SheetTitle.THIS_AREA,
     val sheetItems: List<LandmarkItem> = emptyList(),
     val markers: List<LandmarkItem> = emptyList(),
+    /** A primeira busca do que o sheet mostra já terminou com sucesso (distingue "carregando" de "vazio"). */
+    val sheetLoaded: Boolean = false,
+    /** O mapa já foi centralizado no usuário; sobrevive às trocas Mapa/Lista (o mapa é recriado). */
+    val centeredOnUser: Boolean = false,
     val loading: Boolean = false,
     val error: AppError? = null,
 )
@@ -53,6 +59,7 @@ class ExploreViewModel @Inject constructor(
         location.hasPermission().let {
             ExploreUiState(
                 hasPermission = it,
+                hasPreciseLocation = location.hasPreciseLocation(),
                 sheetTitle = if (it) SheetTitle.NEAR_YOU else SheetTitle.THIS_AREA,
             )
         },
@@ -67,6 +74,8 @@ class ExploreViewModel @Inject constructor(
     private var userError: AppError? = null
     private var cameraError: AppError? = null
     private var userLoading = false
+    private var userLoaded = false
+    private var cameraLoaded = false
     private var cameraLoading = false
     private var visible = false
 
@@ -93,12 +102,14 @@ class ExploreViewModel @Inject constructor(
         locationJob = null
     }
 
+    fun onCenteredOnUser() = _uiState.update { it.copy(centeredOnUser = true) }
+
     fun setMode(mode: ExploreMode) = _uiState.update { it.copy(mode = mode) }
 
-    fun onPermissionResult(granted: Boolean) = applyPermission(granted)
+    fun onPermissionResult(granted: Boolean) = applyPermission(granted, location.hasPreciseLocation())
 
-    /** Reavalia a permissão (o usuário pode tê-la concedido nos ajustes do sistema). */
-    fun refreshPermission() = applyPermission(location.hasPermission())
+    /** Reavalia as permissões (o usuário pode tê-las mudado no diálogo ou nos ajustes do sistema). */
+    fun refreshPermission() = applyPermission(location.hasPermission(), location.hasPreciseLocation())
 
     fun onCameraIdle(center: GeoPoint, visibleRadiusM: Double) {
         lastCamera = center to visibleRadiusM
@@ -110,9 +121,10 @@ class ExploreViewModel @Inject constructor(
         if (cameraError != null) lastCamera?.let { (c, r) -> fetchCamera(c, r) }
     }
 
-    private fun applyPermission(granted: Boolean) {
-        if (granted == _uiState.value.hasPermission) return
-        if (!granted) {
+    private fun applyPermission(granted: Boolean, precise: Boolean) {
+        val wasGranted = _uiState.value.hasPermission
+        if (granted == wasGranted && precise == _uiState.value.hasPreciseLocation) return
+        if (!granted && wasGranted) {
             locationJob?.cancel()
             locationJob = null
             userFetchJob?.cancel()
@@ -122,9 +134,10 @@ class ExploreViewModel @Inject constructor(
             userError = null
             userLoading = false
         }
-        _uiState.value = _uiState.value.copy(hasPermission = granted)
+        if (granted != wasGranted) userLoaded = false
+        _uiState.value = _uiState.value.copy(hasPermission = granted, hasPreciseLocation = precise)
         publish()
-        if (granted) startLocation()
+        if (granted && !wasGranted) startLocation()
     }
 
     private fun startLocation() {
@@ -150,7 +163,10 @@ class ExploreViewModel @Inject constructor(
         publish()
         userFetchJob = viewModelScope.launch {
             when (val result = repository.nearby(point, USER_NEARBY_RADIUS_M)) {
-                is ApiResult.Success -> userLandmarks = result.value
+                is ApiResult.Success -> {
+                    userLandmarks = result.value
+                    userLoaded = true
+                }
                 is ApiResult.Failure -> userError = result.error
             }
             userLoading = false
@@ -166,7 +182,10 @@ class ExploreViewModel @Inject constructor(
         val radius = min(ceil(visibleRadiusM).toInt(), MAX_NEARBY_RADIUS_M)
         cameraFetchJob = viewModelScope.launch {
             when (val result = repository.nearby(center, radius)) {
-                is ApiResult.Success -> cameraLandmarks = result.value
+                is ApiResult.Success -> {
+                    cameraLandmarks = result.value
+                    cameraLoaded = true
+                }
                 is ApiResult.Failure -> cameraError = result.error
             }
             cameraLoading = false
@@ -176,13 +195,15 @@ class ExploreViewModel @Inject constructor(
 
     private fun publish() {
         val hasPermission = _uiState.value.hasPermission
-        val markers = toItems(cameraLandmarks, user)
+        val chatEnabled = _uiState.value.hasPreciseLocation
+        val markers = toItems(cameraLandmarks, user, chatEnabled)
         _uiState.update {
             it.copy(
                 user = user,
                 markers = markers,
                 sheetTitle = if (hasPermission) SheetTitle.NEAR_YOU else SheetTitle.THIS_AREA,
-                sheetItems = if (hasPermission) toItems(userLandmarks, user) else toItems(cameraLandmarks, null),
+                sheetItems = if (hasPermission) toItems(userLandmarks, user, chatEnabled) else toItems(cameraLandmarks, null),
+                sheetLoaded = if (hasPermission) userLoaded else cameraLoaded,
                 loading = userLoading || cameraLoading,
                 error = userError ?: cameraError,
             )

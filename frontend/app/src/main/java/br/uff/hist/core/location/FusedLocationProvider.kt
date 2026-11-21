@@ -33,6 +33,8 @@ class FusedLocationProvider @Inject constructor(
     override fun hasPermission(): Boolean =
         granted(Manifest.permission.ACCESS_FINE_LOCATION) || granted(Manifest.permission.ACCESS_COARSE_LOCATION)
 
+    override fun hasPreciseLocation(): Boolean = granted(Manifest.permission.ACCESS_FINE_LOCATION)
+
     @SuppressLint("MissingPermission")
     override fun updates(priority: LocationPriority, intervalMs: Long): Flow<LocationFix> {
         if (!hasPermission()) return emptyFlow()

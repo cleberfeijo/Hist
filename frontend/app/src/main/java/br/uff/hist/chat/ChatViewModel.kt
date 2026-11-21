@@ -45,6 +45,8 @@ fun endMessage(reason: EndReason): Int? = when (reason) {
     EndReason.MOCK_LOCATION -> R.string.chat_mock_location
     EndReason.NOT_FOUND -> R.string.chat_not_found
     EndReason.NO_LOCATION_PERMISSION -> R.string.chat_no_permission
+    EndReason.NO_PRECISE_LOCATION -> R.string.chat_needs_precise
+    EndReason.TOO_FAR_TO_JOIN -> R.string.chat_too_far_to_join
     // SESSION_EXPIRED é tratado pela navegação raiz (volta ao Login); LEFT foi decisão do usuário.
     EndReason.SESSION_EXPIRED, EndReason.LEFT -> null
 }

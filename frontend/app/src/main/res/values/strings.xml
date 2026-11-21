@@ -42,8 +42,14 @@
     <string name="explore_mode_list">Lista</string>
     <string name="sheet_near_you">Perto de você</string>
     <string name="sheet_this_area">Nesta área</string>
+    <string name="sheet_empty_near_you">Nenhum ponto histórico por perto.</string>
+    <string name="sheet_empty_this_area">Nenhum ponto histórico nesta área.</string>
     <string name="chat_chip">Chat</string>
     <string name="location_banner">Ative a localização para ver o que há ao seu redor e entrar nos chats.</string>
+    <string name="location_approximate_banner">Sua localização está aproximada. Ative a precisa para usar o chat.</string>
+    <string name="location_enable_precise">Ativar precisa</string>
+    <string name="permission_denied_settings">A permissão foi negada. Abra as configurações do app para ativar a localização.</string>
+    <string name="open_app_settings">Abrir configurações</string>
     <string name="location_enable">Ativar localização</string>
     <string name="suggest_landmark">Sugerir ponto</string>
     <plurals name="curiosity_count">
@@ -56,6 +62,8 @@
     <string name="chat_locating">Procurando sua localização…</string>
     <string name="chat_mock_location">Localização simulada detectada. Desative-a para entrar no chat.</string>
     <string name="chat_no_permission">Ative a localização para entrar no chat.</string>
+    <string name="chat_needs_precise">Ative a localização precisa para entrar no chat.</string>
+    <string name="chat_too_far_to_join">Você não está perto o bastante deste ponto para entrar no chat.</string>
     <string name="curiosities_header">Curiosidades · %1$d</string>
     <string name="curiosity_suggest">+ Sugerir</string>
     <string name="curiosities_empty">Ninguém contou nada sobre este lugar ainda. Seja o primeiro.</string>
@@ -80,6 +88,7 @@
     <string name="chat_out_of_range">Você saiu da área do ponto. A conversa foi encerrada.</string>
     <string name="chat_background_timeout">A conversa foi encerrada porque você ficou fora do app</string>
     <string name="chat_not_found">Este ponto não está mais disponível.</string>
+    <string name="chat_connecting">Conectando…</string>
     <string name="chat_reconnecting">Reconectando…</string>
     <string name="chat_message_hint">Mensagem</string>
     <string name="chat_send">Enviar</string>

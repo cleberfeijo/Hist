@@ -138,6 +138,28 @@ class LandmarkDetailViewModelTest {
         assertEquals(ChatAccess.Locating, vm.uiState.value.chatAccess)
     }
 
+    @Test fun `so localizacao aproximada e NeedsPrecise mesmo com fix`() = runTest(dispatcher) {
+        location.setPrecise(false)
+        val vm = started()
+        location.emit(fix(USER))
+        advanceUntilIdle()
+        assertEquals(ChatAccess.NeedsPrecise, vm.uiState.value.chatAccess)
+    }
+
+    @Test fun `conceder a precisa depois libera o chat`() = runTest(dispatcher) {
+        location.setPrecise(false)
+        val vm = started()
+        location.emit(fix(USER))
+        advanceUntilIdle()
+        location.setPrecise(true)
+        vm.refreshPermission()
+        advanceUntilIdle()
+        assertEquals(ChatAccess.Locating, vm.uiState.value.chatAccess) // fix zerado ao reavaliar; aguarda o próximo
+        location.emit(fix(USER))
+        advanceUntilIdle()
+        assertEquals(ChatAccess.Available, vm.uiState.value.chatAccess)
+    }
+
     @Test fun `com permissao e sem nenhum fix fica Locating`() = runTest(dispatcher) {
         val vm = started()
         assertEquals(ChatAccess.Locating, vm.uiState.value.chatAccess)

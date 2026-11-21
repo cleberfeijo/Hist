@@ -49,6 +49,7 @@ fun ExploreMap(
     state: ExploreUiState,
     onCameraIdle: (GeoPoint, Double) -> Unit,
     onMarkerClick: (String) -> Unit,
+    onCenteredOnUser: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
@@ -59,11 +60,17 @@ fun ExploreMap(
     val style = remember(dark) {
         MapStyleOptions.loadRawResourceStyle(context, if (dark) R.raw.map_style_dark else R.raw.map_style_light)
     }
+    // `centeredOnUser` vive no ViewModel: o mapa é recriado a cada troca Mapa/Lista e, sem isso, voltaria a recentralizar.
+    val centeredOnUser = state.centeredOnUser
     val cameraState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(state.initialCamera.toLatLng(), INITIAL_ZOOM)
+        val userStart = state.user?.takeIf { centeredOnUser }
+        position = if (userStart != null) {
+            CameraPosition.fromLatLngZoom(userStart.toLatLng(), USER_ZOOM)
+        } else {
+            CameraPosition.fromLatLngZoom(state.initialCamera.toLatLng(), INITIAL_ZOOM)
+        }
     }
     var loaded by remember { mutableStateOf(false) }
-    var centeredOnUser by remember { mutableStateOf(false) }
 
     // A última posição conhecida chega depois da primeira composição; só vale até o usuário mexer no mapa.
     LaunchedEffect(state.initialCamera) {
@@ -72,7 +79,7 @@ fun ExploreMap(
     LaunchedEffect(state.user != null) {
         val user = state.user
         if (user != null && !centeredOnUser) {
-            centeredOnUser = true
+            onCenteredOnUser()
             cameraState.animate(CameraUpdateFactory.newLatLngZoom(user.toLatLng(), USER_ZOOM))
         }
     }

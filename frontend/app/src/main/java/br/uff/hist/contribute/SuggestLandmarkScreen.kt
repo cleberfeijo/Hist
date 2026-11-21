@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.Box
@@ -134,7 +135,8 @@ internal fun SuggestLandmarkContent(
     ) { padding ->
         // Com o teclado aberto o mapa encolhe para uma faixa (continua composto: câmera e pino se mantêm).
         val mapHeight by animateDpAsState(if (WindowInsets.isImeVisible) CollapsedMapHeight else MapHeight, label = "mapHeight")
-        Column(Modifier.padding(padding).imePadding().fillMaxSize()) {
+        // O Scaffold já reservou a barra de navegação em `padding`; o teclado só soma o que passar dela.
+        Column(Modifier.padding(padding).consumeWindowInsets(padding).imePadding().fillMaxSize()) {
             // O mapa fica fora da rolagem do formulário: arrastar o mapa não pode rolar a tela.
             Box(Modifier.fillMaxWidth().height(mapHeight)) {
                 mapContent(Modifier.fillMaxSize())

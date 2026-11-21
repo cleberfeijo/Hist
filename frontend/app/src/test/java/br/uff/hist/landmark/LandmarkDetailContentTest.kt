@@ -44,12 +44,12 @@ private fun state(access: ChatAccess, distance: Double? = 87.0) = LandmarkDetail
 class LandmarkDetailContentTest {
     @get:Rule val compose = createComposeRule()
 
-    private fun show(state: LandmarkDetailUiState, onEnterChat: () -> Unit = {}) {
+    private fun show(state: LandmarkDetailUiState, onEnterChat: () -> Unit = {}, onEnablePrecise: () -> Unit = {}) {
         compose.setContent {
             HistTheme {
                 LandmarkDetailContent(
                     state = state, errorMessage = null, onBack = {}, onEnterChat = onEnterChat,
-                    onEnableLocation = {}, onRetry = {}, onLoadMore = {}, onOpenSuggestion = {},
+                    onEnableLocation = {}, onEnablePrecise = onEnablePrecise, onRetry = {}, onLoadMore = {}, onOpenSuggestion = {},
                     onSuggestionText = {}, onSubmitSuggestion = {}, onDismissSuggestion = {},
                 )
             }
@@ -90,6 +90,14 @@ class LandmarkDetailContentTest {
         show(state(ChatAccess.NoPermission, null))
         compose.onNodeWithText("Ative a localização para entrar no chat.").assertIsDisplayed()
         compose.onNodeWithText("Ativar localização").assertIsDisplayed()
+    }
+
+    @Test fun `NeedsPrecise desabilita o botao e oferece pedir a localizacao precisa`() {
+        var asked = 0
+        show(state(ChatAccess.NeedsPrecise, null), onEnablePrecise = { asked++ })
+        compose.onNodeWithText("Ative a localização precisa para entrar no chat.").assertIsDisplayed().assertIsNotEnabled()
+        compose.onNodeWithText("Ativar precisa").performClick()
+        assertEquals(1, asked)
     }
 
     @Test fun `cabecalho mostra o total do ponto e nao so os itens carregados`() {

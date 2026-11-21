@@ -32,6 +32,9 @@ sealed interface ChatAccess {
     data object Available : ChatAccess
     data class TooFar(val missingM: Int) : ChatAccess
     data object NoPermission : ChatAccess
+
+    /** Só a localização aproximada foi concedida. */
+    data object NeedsPrecise : ChatAccess
     data object Locating : ChatAccess
     data object MockLocation : ChatAccess
 }
@@ -71,13 +74,18 @@ class LandmarkDetailViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(
         LandmarkDetailUiState(
-            chatAccess = if (location.hasPermission()) ChatAccess.Locating else ChatAccess.NoPermission,
+            chatAccess = when {
+                !location.hasPermission() -> ChatAccess.NoPermission
+                !location.hasPreciseLocation() -> ChatAccess.NeedsPrecise
+                else -> ChatAccess.Locating
+            },
             curiositiesLoaded = false,
         ),
     )
     val uiState: StateFlow<LandmarkDetailUiState> = _uiState.asStateFlow()
 
     private var hasPermission = location.hasPermission()
+    private var hasPrecise = location.hasPreciseLocation()
     private var fix: LocationFix? = null
     private var nextPage = 1
     private var more = true
@@ -93,7 +101,7 @@ class LandmarkDetailViewModel @Inject constructor(
 
     fun onStart() {
         visible = true
-        applyPermission(location.hasPermission())
+        refreshPermission()
         startLocation()
     }
 
@@ -106,7 +114,10 @@ class LandmarkDetailViewModel @Inject constructor(
         publishAccess()
     }
 
-    fun onPermissionResult(granted: Boolean) = applyPermission(granted)
+    fun onPermissionResult(granted: Boolean) = applyPermission(granted, location.hasPreciseLocation())
+
+    /** Relê as permissões (o usuário pode tê-las mudado no diálogo ou nos ajustes do sistema). */
+    fun refreshPermission() = applyPermission(location.hasPermission(), location.hasPreciseLocation())
 
     fun loadMore() {
         if (!more || curiositiesJob?.isActive == true) return
@@ -150,16 +161,19 @@ class LandmarkDetailViewModel @Inject constructor(
     private fun setSuggestion(f: (SuggestionState) -> SuggestionState) =
         _uiState.update { it.copy(suggestion = f(it.suggestion)) }
 
-    private fun applyPermission(granted: Boolean) {
-        if (granted == hasPermission) return
+    private fun applyPermission(granted: Boolean, precise: Boolean) {
+        if (granted == hasPermission && precise == hasPrecise) return
+        val wasGranted = hasPermission
         hasPermission = granted
+        hasPrecise = precise
         if (!granted) {
             locationJob?.cancel()
             locationJob = null
-            fix = null
         }
+        // A posição obtida com outra precisão não vale para o raio do chat.
+        fix = null
         publishAccess()
-        if (granted) startLocation()
+        if (granted && !wasGranted) startLocation()
     }
 
     private fun startLocation() {
@@ -208,6 +222,7 @@ class LandmarkDetailViewModel @Inject constructor(
         val distance = if (target != null && current != null) distanceMeters(current.point, target.location) else null
         val access = when {
             !hasPermission -> ChatAccess.NoPermission
+            !hasPrecise -> ChatAccess.NeedsPrecise
             current == null || distance == null -> ChatAccess.Locating
             current.isMock -> ChatAccess.MockLocation
             distance <= CHAT_JOIN_RADIUS_M -> ChatAccess.Available

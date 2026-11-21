@@ -1,8 +1,5 @@
 package br.uff.hist.explore
 
-import android.Manifest
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.annotation.StringRes
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -41,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.uff.hist.R
 import br.uff.hist.core.designsystem.LocalSecondaryText
 import br.uff.hist.core.designsystem.components.ErrorState
+import br.uff.hist.core.location.rememberLocationPermissionActions
 import br.uff.hist.core.model.GeoPoint
 import br.uff.hist.core.network.ErrorMessages
 
@@ -63,22 +65,21 @@ fun ExploreScreen(
         viewModel.onStart()
         onStopOrDispose { viewModel.onStop() }
     }
-    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
-        viewModel.onPermissionResult(result.values.any { it })
-    }
+    val permissions = rememberLocationPermissionActions(onResult = viewModel::refreshPermission)
     ExploreContent(
         state = state,
         errorMessage = state.error?.let { messages.of(it) },
         onSetMode = viewModel::setMode,
         onCameraIdle = viewModel::onCameraIdle,
         onRetry = viewModel::retry,
-        onEnableLocation = {
-            permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
-        },
+        onEnableLocation = permissions.requestLocation,
+        onEnablePrecise = permissions.requestPrecise,
+        onCenteredOnUser = viewModel::onCenteredOnUser,
         onOpenLandmark = onOpenLandmark,
         onSuggestLandmark = onSuggestLandmark,
         modifier = modifier,
     )
+    permissions.Dialog()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,6 +91,8 @@ internal fun ExploreContent(
     onCameraIdle: (GeoPoint, Double) -> Unit,
     onRetry: () -> Unit,
     onEnableLocation: () -> Unit,
+    onEnablePrecise: () -> Unit,
+    onCenteredOnUser: () -> Unit,
     onOpenLandmark: (String) -> Unit,
     onSuggestLandmark: () -> Unit,
     modifier: Modifier = Modifier,
@@ -99,6 +102,7 @@ internal fun ExploreContent(
             state = state,
             onCameraIdle = onCameraIdle,
             onMarkerClick = onOpenLandmark,
+            onCenteredOnUser = onCenteredOnUser,
             contentPadding = PaddingValues(bottom = SheetPeekHeight),
             modifier = mapModifier,
         )
@@ -108,7 +112,11 @@ internal fun ExploreContent(
     val topBar: @Composable () -> Unit = {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             ModeSelector(state.mode, onSetMode)
-            if (!state.hasPermission) PermissionBanner(onEnableLocation)
+            if (!state.hasPermission) {
+                PermissionBanner(stringResource(R.string.location_banner), R.string.location_enable, onEnableLocation)
+            } else if (!state.hasPreciseLocation) {
+                PermissionBanner(stringResource(R.string.location_approximate_banner), R.string.location_enable_precise, onEnablePrecise)
+            }
             if (errorMessage != null && (mapMode || state.sheetItems.isNotEmpty())) ErrorBanner(errorMessage, onRetry)
         }
     }
@@ -119,17 +127,31 @@ internal fun ExploreContent(
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
-            if (!mapMode && errorMessage != null && state.sheetItems.isEmpty()) {
-                Box(Modifier.fillMaxWidth().height(220.dp)) { ErrorState(errorMessage, onRetry) }
-            } else {
-                LandmarkList(state.sheetItems, onOpenLandmark, Modifier.fillMaxWidth())
+            when {
+                !mapMode && errorMessage != null && state.sheetItems.isEmpty() ->
+                    Box(Modifier.fillMaxWidth().height(220.dp)) { ErrorState(errorMessage, onRetry) }
+                state.sheetItems.isNotEmpty() -> LandmarkList(state.sheetItems, onOpenLandmark, Modifier.fillMaxWidth())
+                state.sheetLoaded -> Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        stringResource(if (state.sheetTitle == SheetTitle.NEAR_YOU) R.string.sheet_empty_near_you else R.string.sheet_empty_this_area),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = LocalSecondaryText.current,
+                    )
+                }
+                errorMessage == null -> Box(Modifier.fillMaxWidth().height(120.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
         }
     }
 
+    val scaffoldState = rememberBottomSheetScaffoldState()
+    // Com o sheet expandido o botão cobriria as linhas da lista.
+    val sheetExpanded = mapMode && scaffoldState.bottomSheetState.targetValue == SheetValue.Expanded
     Box(modifier.fillMaxSize()) {
         if (mapMode) {
             BottomSheetScaffold(
+                scaffoldState = scaffoldState,
                 sheetPeekHeight = SheetPeekHeight,
                 sheetShape = RoundedCornerShape(topStart = SheetCorner, topEnd = SheetCorner),
                 sheetContainerColor = MaterialTheme.colorScheme.surface,
@@ -149,10 +171,12 @@ internal fun ExploreContent(
                 listContent(Modifier.weight(1f).fillMaxWidth())
             }
         }
-        FloatingActionButton(
-            onClick = onSuggestLandmark,
-            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = if (mapMode) SheetPeekHeight + 16.dp else 16.dp),
-        ) { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.suggest_landmark)) }
+        if (!sheetExpanded) {
+            FloatingActionButton(
+                onClick = onSuggestLandmark,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = if (mapMode) SheetPeekHeight + 16.dp else 16.dp),
+            ) { Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.suggest_landmark)) }
+        }
     }
 }
 
@@ -171,16 +195,16 @@ private fun ModeSelector(mode: ExploreMode, onSetMode: (ExploreMode) -> Unit) {
 }
 
 @Composable
-private fun PermissionBanner(onEnable: () -> Unit) {
+private fun PermissionBanner(message: String, @StringRes actionLabel: Int, onEnable: () -> Unit) {
     Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(start = 12.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                stringResource(R.string.location_banner),
+                message,
                 style = MaterialTheme.typography.bodySmall,
                 color = LocalSecondaryText.current,
                 modifier = Modifier.weight(1f).padding(vertical = 8.dp),
             )
-            TextButton(onClick = onEnable) { Text(stringResource(R.string.location_enable)) }
+            TextButton(onClick = onEnable) { Text(stringResource(actionLabel)) }
         }
     }
 }

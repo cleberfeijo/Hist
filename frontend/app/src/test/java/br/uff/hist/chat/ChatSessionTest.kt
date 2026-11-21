@@ -626,6 +626,45 @@ class ChatSessionTest {
         assertEquals(1000, conn.closedByClient)
     }
 
+    @Test fun approximateOnlyAtStartEndsWithoutConnecting() = chatTest {
+        location.setPrecise(false)
+        session.start()
+        run()
+        assertEquals(ChatPhase.Ended(EndReason.NO_PRECISE_LOCATION), state.phase)
+        assertEquals(0, factory.connectCount)
+    }
+
+    @Test fun approximateOnlyBeforeReconnectEnds() = chatTest {
+        active()
+        location.setPrecise(false)
+        conn.serverClose(1001)
+        run()
+        advance(60_000)
+        assertEquals(ChatPhase.Ended(EndReason.NO_PRECISE_LOCATION), state.phase)
+        assertEquals(1, factory.connectCount)
+    }
+
+    @Test fun approximateOnlyOnResumeEndsAndCloses() = chatTest {
+        active()
+        session.onAppBackground()
+        run()
+        location.setPrecise(false)
+        session.onAppForeground()
+        run()
+        assertEquals(ChatPhase.Ended(EndReason.NO_PRECISE_LOCATION), state.phase)
+        assertEquals(1000, conn.closedByClient)
+    }
+
+    @Test fun close4403BeforeWelcomeIsTooFarToJoin() = chatTest {
+        session.start()
+        run()
+        conn.serverClose(CLOSE_OUT_OF_RANGE)
+        run()
+        assertEquals(ChatPhase.Ended(EndReason.TOO_FAR_TO_JOIN), state.phase)
+        advance(60_000)
+        assertEquals(1, factory.connectCount)
+    }
+
     // --- Saída ---
 
     @Test fun leaveClosesEmptiesAndIsIdempotent() = chatTest {

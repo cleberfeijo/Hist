@@ -184,6 +184,8 @@ class ChatViewModelTest {
         assertEquals(R.string.chat_mock_location, endMessage(EndReason.MOCK_LOCATION))
         assertEquals(R.string.chat_not_found, endMessage(EndReason.NOT_FOUND))
         assertEquals(R.string.chat_no_permission, endMessage(EndReason.NO_LOCATION_PERMISSION))
+        assertEquals(R.string.chat_needs_precise, endMessage(EndReason.NO_PRECISE_LOCATION))
+        assertEquals(R.string.chat_too_far_to_join, endMessage(EndReason.TOO_FAR_TO_JOIN))
         assertNull(endMessage(EndReason.SESSION_EXPIRED))
         assertNull(endMessage(EndReason.LEFT))
     }

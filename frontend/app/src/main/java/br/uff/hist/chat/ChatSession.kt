@@ -31,7 +31,7 @@ data class ChatConfig(
     val backoffMs: List<Long> = listOf(1_000, 2_000, 4_000, 8_000, 16_000, 30_000),
 )
 
-enum class EndReason { OUT_OF_RANGE, BACKGROUND_TIMEOUT, SESSION_EXPIRED, NOT_FOUND, MOCK_LOCATION, LEFT, NO_LOCATION_PERMISSION }
+enum class EndReason { OUT_OF_RANGE, BACKGROUND_TIMEOUT, SESSION_EXPIRED, NOT_FOUND, MOCK_LOCATION, LEFT, NO_LOCATION_PERMISSION, NO_PRECISE_LOCATION, TOO_FAR_TO_JOIN }
 
 sealed interface ChatPhase {
     data object Connecting : ChatPhase
@@ -83,6 +83,7 @@ private const val CLOSE_NORMAL = 1000
  * - `start()`/`onAppForeground()` sem fix atual esperam o primeiro fix de `updates(HIGH)`.
  * - Sem permissão de localização (no `start()`, antes de cada tentativa de reconexão ou ao voltar ao app,
  *   ou se `updates` completar vazio) → fecha a conexão e `Ended(NO_LOCATION_PERMISSION)`; nunca fica preso.
+ *   Só com localização aproximada (COARSE) → `Ended(NO_PRECISE_LOCATION)` nos mesmos pontos.
  * - "Em segundo plano" ([inBackground]) vale em qualquer fase: o timer de 5 minutos começa já em
  *   `Connecting`. Se o `welcome` chegar em segundo plano, raios/limite são aplicados e a sessão vai direto
  *   para `Paused` (o que vier depois fica guardado). Em segundo plano nunca há tentativa de reconexão.
@@ -232,8 +233,15 @@ class ChatSession(
     private fun onStart() {
         if (started) return
         started = true
-        if (!location.hasPermission()) return end(EndReason.NO_LOCATION_PERMISSION)
+        locationBlock()?.let { return end(it) }
         startJob = scope.launch { post(Input.StartFix(freshFix())) }
+    }
+
+    /** Por que a localização atual não serve para o chat (sem permissão ou só aproximada); `null` se serve. */
+    private fun locationBlock(): EndReason? = when {
+        !location.hasPermission() -> EndReason.NO_LOCATION_PERMISSION
+        !location.hasPreciseLocation() -> EndReason.NO_PRECISE_LOCATION
+        else -> null
     }
 
     private suspend fun freshFix(): LocationFix? =
@@ -332,13 +340,15 @@ class ChatSession(
     }
 
     private fun onConnectionEnded(code: Int?) {
+        val wasWelcomed = welcomed
         conn = null
         connToken = 0
         connJob = null
         welcomed = false
         stopTracking()
         when (code) {
-            CLOSE_OUT_OF_RANGE -> end(EndReason.OUT_OF_RANGE)
+            // 4403 antes do `welcome`: o servidor recusou a entrada; depois dele, foi o usuário que saiu da área
+            CLOSE_OUT_OF_RANGE -> end(if (wasWelcomed) EndReason.OUT_OF_RANGE else EndReason.TOO_FAR_TO_JOIN)
             CLOSE_UNAUTHORIZED -> {
                 sessionEvents.notifyExpired()
                 end(EndReason.SESSION_EXPIRED)
@@ -397,7 +407,7 @@ class ChatSession(
     // ---- Reconexão ----
 
     private fun scheduleReconnect() {
-        if (!location.hasPermission()) return end(EndReason.NO_LOCATION_PERMISSION)
+        locationBlock()?.let { return end(it) }
         setPhase(ChatPhase.Reconnecting)
         val waitMs = config.backoffMs[minOf(attempt, config.backoffMs.lastIndex)]
         attempt++
@@ -414,7 +424,7 @@ class ChatSession(
         reconnectToken = 0
         reconnectJob = null
         when {
-            !location.hasPermission() -> end(EndReason.NO_LOCATION_PERMISSION)
+            locationBlock() != null -> end(locationBlock()!!)
             fix == null -> scheduleReconnect() // posição desconhecida: próxima espera
             fix.isMock -> end(EndReason.MOCK_LOCATION)
             updateDistance(fix.point) > _state.value.joinRadiusM -> end(EndReason.OUT_OF_RANGE)
@@ -462,7 +472,7 @@ class ChatSession(
 
     private fun onForeground() {
         if (!inBackground || foregroundToken != 0) return
-        if (!location.hasPermission()) return end(EndReason.NO_LOCATION_PERMISSION)
+        locationBlock()?.let { return end(it) }
         if (!paused) {
             // ainda em Connecting, sem `welcome`: o que chegou antes dele não é exibido nem guardado
             inBackground = false

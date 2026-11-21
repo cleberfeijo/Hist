@@ -1,18 +1,20 @@
 package br.uff.hist.landmark
 
-import android.Manifest
 import androidx.annotation.StringRes
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -51,6 +53,7 @@ import br.uff.hist.core.designsystem.formatDistance
 import br.uff.hist.core.designsystem.formatRelativeDate
 import br.uff.hist.core.designsystem.components.ErrorState
 import br.uff.hist.core.designsystem.components.LoadingState
+import br.uff.hist.core.location.rememberLocationPermissionActions
 import br.uff.hist.core.model.CHAT_JOIN_RADIUS_M
 import br.uff.hist.core.model.Curiosity
 import br.uff.hist.core.model.Landmark
@@ -76,9 +79,7 @@ fun LandmarkDetailScreen(
         viewModel.onStart()
         onStopOrDispose { viewModel.onStop() }
     }
-    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
-        viewModel.onPermissionResult(result.values.any { it })
-    }
+    val permissions = rememberLocationPermissionActions(onResult = viewModel::refreshPermission)
     val snackbar = remember { SnackbarHostState() }
     EndMessageEffect(endMessage, snackbar, onEndMessageShown)
     Box(modifier) {
@@ -87,9 +88,8 @@ fun LandmarkDetailScreen(
             errorMessage = state.error?.let { messages.of(it) },
             onBack = onBack,
             onEnterChat = { state.landmark?.let { onEnterChat(it.id) } },
-            onEnableLocation = {
-                permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
-            },
+            onEnableLocation = permissions.requestLocation,
+            onEnablePrecise = permissions.requestPrecise,
             onRetry = viewModel::retry,
             onLoadMore = viewModel::loadMore,
             onOpenSuggestion = viewModel::openSuggestion,
@@ -97,8 +97,9 @@ fun LandmarkDetailScreen(
             onSubmitSuggestion = viewModel::submitSuggestion,
             onDismissSuggestion = viewModel::dismissSuggestion,
         )
-        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
+        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
     }
+    permissions.Dialog()
 }
 
 /** Mostra o texto e só então o consome: limpar a chave antes cancelaria o `showSnackbar` em andamento. */
@@ -121,6 +122,7 @@ internal fun LandmarkDetailContent(
     onBack: () -> Unit,
     onEnterChat: () -> Unit,
     onEnableLocation: () -> Unit,
+    onEnablePrecise: () -> Unit,
     onRetry: () -> Unit,
     onLoadMore: () -> Unit,
     onOpenSuggestion: () -> Unit,
@@ -133,12 +135,12 @@ internal fun LandmarkDetailContent(
         val landmark = state.landmark
         when {
             landmark != null -> DetailList(
-                landmark, state, onEnterChat, onEnableLocation, onRetry, onLoadMore, onOpenSuggestion,
+                landmark, state, onEnterChat, onEnableLocation, onEnablePrecise, onRetry, onLoadMore, onOpenSuggestion,
             )
             errorMessage != null -> ErrorState(errorMessage, onRetry)
             else -> LoadingState()
         }
-        IconButton(onClick = onBack, modifier = Modifier.padding(8.dp)) {
+        IconButton(onClick = onBack, modifier = Modifier.statusBarsPadding().padding(8.dp)) {
             Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
@@ -159,12 +161,17 @@ private fun DetailList(
     state: LandmarkDetailUiState,
     onEnterChat: () -> Unit,
     onEnableLocation: () -> Unit,
+    onEnablePrecise: () -> Unit,
     onRetry: () -> Unit,
     onLoadMore: () -> Unit,
     onOpenSuggestion: () -> Unit,
 ) {
-    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        item(key = "header") { Header(landmark, state, onEnterChat, onEnableLocation) }
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = WindowInsets.navigationBars.asPaddingValues(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item(key = "header") { Header(landmark, state, onEnterChat, onEnableLocation, onEnablePrecise) }
         item(key = "curiosities-header") {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 8.dp),
@@ -229,6 +236,7 @@ private fun Header(
     state: LandmarkDetailUiState,
     onEnterChat: () -> Unit,
     onEnableLocation: () -> Unit,
+    onEnablePrecise: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         val photoModifier = Modifier.fillMaxWidth().height(PhotoHeight)
@@ -258,7 +266,7 @@ private fun Header(
             Text(landmark.name, style = MaterialTheme.typography.headlineSmall)
             Text(metaLine(landmark, state.distanceM), style = MaterialTheme.typography.bodySmall, color = LocalSecondaryText.current)
             landmark.description?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
-            ChatButton(state.chatAccess, onEnterChat, onEnableLocation)
+            ChatButton(state.chatAccess, onEnterChat, onEnableLocation, onEnablePrecise)
         }
     }
 }
@@ -280,19 +288,23 @@ private fun metaLine(landmark: Landmark, distanceM: Double?): String {
 }
 
 @Composable
-private fun ChatButton(access: ChatAccess, onEnterChat: () -> Unit, onEnableLocation: () -> Unit) {
+private fun ChatButton(access: ChatAccess, onEnterChat: () -> Unit, onEnableLocation: () -> Unit, onEnablePrecise: () -> Unit) {
     val label = when (access) {
         ChatAccess.Available -> stringResource(R.string.chat_enter)
         is ChatAccess.TooFar -> stringResource(R.string.chat_too_far, CHAT_JOIN_RADIUS_M, access.missingM)
         ChatAccess.Locating -> stringResource(R.string.chat_locating)
         ChatAccess.MockLocation -> stringResource(R.string.chat_mock_location)
         ChatAccess.NoPermission -> stringResource(R.string.chat_no_permission)
+        ChatAccess.NeedsPrecise -> stringResource(R.string.chat_needs_precise)
     }
     Button(onClick = onEnterChat, enabled = access == ChatAccess.Available, modifier = Modifier.fillMaxWidth()) {
         Text(label)
     }
     if (access == ChatAccess.NoPermission) {
         TextButton(onClick = onEnableLocation) { Text(stringResource(R.string.location_enable)) }
+    }
+    if (access == ChatAccess.NeedsPrecise) {
+        TextButton(onClick = onEnablePrecise) { Text(stringResource(R.string.location_enable_precise)) }
     }
 }
 
