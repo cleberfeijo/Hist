@@ -39,7 +39,7 @@ class LandmarkListTest {
             }
         }
         compose.onNodeWithText("Chat").assertIsDisplayed()
-        compose.onNodeWithText("410 m").assertIsDisplayed()
+        compose.onNodeWithText("a 410 m").assertIsDisplayed()
         compose.onNodeWithText("Marco").performClick()
         assertEquals("b", clicked)
     }

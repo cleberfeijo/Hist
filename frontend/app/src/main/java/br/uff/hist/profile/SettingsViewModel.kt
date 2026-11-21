@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.uff.hist.R
 import br.uff.hist.auth.AuthRepository
-import br.uff.hist.auth.PASSWORD_MAX_LENGTH
-import br.uff.hist.auth.PASSWORD_MIN_LENGTH
+import br.uff.hist.core.model.PASSWORD_MAX_LENGTH
+import br.uff.hist.core.model.PASSWORD_MIN_LENGTH
 import br.uff.hist.core.designsystem.ThemePreference
 import br.uff.hist.core.model.User
 import br.uff.hist.core.network.ApiResult

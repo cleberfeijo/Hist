@@ -1,7 +1,6 @@
 package br.uff.hist.landmark
 
 import android.Manifest
-import android.text.format.DateUtils
 import androidx.annotation.StringRes
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -48,6 +47,8 @@ import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.uff.hist.R
 import br.uff.hist.core.designsystem.LocalSecondaryText
+import br.uff.hist.core.designsystem.formatDistance
+import br.uff.hist.core.designsystem.formatRelativeDate
 import br.uff.hist.core.designsystem.components.ErrorState
 import br.uff.hist.core.designsystem.components.LoadingState
 import br.uff.hist.core.model.CHAT_JOIN_RADIUS_M
@@ -55,11 +56,8 @@ import br.uff.hist.core.model.Curiosity
 import br.uff.hist.core.model.Landmark
 import br.uff.hist.core.network.ErrorMessages
 import coil3.compose.AsyncImage
-import java.util.Locale
-import kotlin.math.roundToInt
 
 private val PhotoHeight = 220.dp
-private val MetersFormatLocale: Locale = Locale.forLanguageTag("pt-BR")
 
 @Composable
 fun LandmarkDetailScreen(
@@ -276,18 +274,10 @@ private fun metaLine(landmark: Landmark, distanceM: Double?): String {
             city != null -> add(city)
             uf != null -> add(uf)
         }
-        if (distanceM != null) add(distanceAwayText(distanceM))
+        if (distanceM != null) add(formatDistance(distanceM))
     }
     return parts.joinToString(" · ")
 }
-
-@Composable
-private fun distanceAwayText(meters: Double): String =
-    if (meters < 1000) {
-        stringResource(R.string.detail_distance_m, meters.roundToInt())
-    } else {
-        stringResource(R.string.detail_distance_km, String.format(MetersFormatLocale, "%.1f", meters / 1000))
-    }
 
 @Composable
 private fun ChatButton(access: ChatAccess, onEnterChat: () -> Unit, onEnableLocation: () -> Unit) {
@@ -318,9 +308,7 @@ private fun CuriosityRow(curiosity: Curiosity) {
             Text(curiosity.text, style = MaterialTheme.typography.bodyMedium)
             val attribution = curiosity.authorName
                 ?: curiosity.source?.let { stringResource(R.string.curiosity_source, it.name) }
-            val date = DateUtils.getRelativeTimeSpanString(
-                curiosity.createdAt.toEpochMilli(), System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS,
-            ).toString()
+            val date = formatRelativeDate(curiosity.createdAt)
             Text(
                 listOfNotNull(attribution, date).joinToString(" · "),
                 style = MaterialTheme.typography.labelSmall,

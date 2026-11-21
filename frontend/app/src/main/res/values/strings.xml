@@ -46,14 +46,10 @@
     <string name="location_banner">Ative a localização para ver o que há ao seu redor e entrar nos chats.</string>
     <string name="location_enable">Ativar localização</string>
     <string name="suggest_landmark">Sugerir ponto</string>
-    <string name="distance_m">%1$d m</string>
-    <string name="distance_km">%1$s km</string>
     <plurals name="curiosity_count">
         <item quantity="one">%d curiosidade</item>
         <item quantity="other">%d curiosidades</item>
     </plurals>
-    <string name="detail_distance_m">a %1$d m</string>
-    <string name="detail_distance_km">a %1$s km</string>
     <string name="detail_city_line">%1$s, %2$s</string>
     <string name="chat_enter">Entrar no chat do local</string>
     <string name="chat_too_far">Chegue a %1$d m para entrar no chat (faltam %2$d m)</string>

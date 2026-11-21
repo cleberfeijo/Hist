@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.uff.hist.R
+import br.uff.hist.core.model.REASON_MAX_LENGTH
+import br.uff.hist.core.model.REASON_MIN_LENGTH
 import br.uff.hist.core.model.Curiosity
 import br.uff.hist.core.model.Landmark
 import br.uff.hist.core.network.ApiResult
@@ -19,8 +21,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-const val REASON_MIN_LENGTH = 3
-const val REASON_MAX_LENGTH = 500
 private const val NOT_FOUND = "not_found"
 private const val CONFLICT = "conflict"
 

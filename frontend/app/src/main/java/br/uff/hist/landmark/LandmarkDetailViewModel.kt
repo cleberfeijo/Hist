@@ -9,6 +9,8 @@ import br.uff.hist.core.location.LocationFix
 import br.uff.hist.core.location.LocationPriority
 import br.uff.hist.core.location.LocationProvider
 import br.uff.hist.core.model.CHAT_JOIN_RADIUS_M
+import br.uff.hist.core.model.CURIOSITY_MAX_LENGTH
+import br.uff.hist.core.model.CURIOSITY_MIN_LENGTH
 import br.uff.hist.core.model.Curiosity
 import br.uff.hist.core.model.Landmark
 import br.uff.hist.core.model.distanceMeters
@@ -25,9 +27,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-private const val MIN_SUGGESTION_LENGTH = 10
-private const val MAX_SUGGESTION_LENGTH = 2000
 
 sealed interface ChatAccess {
     data object Available : ChatAccess
@@ -135,7 +134,7 @@ class LandmarkDetailViewModel @Inject constructor(
         val current = _uiState.value.suggestion
         if (current.submitting) return
         val text = current.text.trim()
-        if (text.length !in MIN_SUGGESTION_LENGTH..MAX_SUGGESTION_LENGTH) {
+        if (text.length !in CURIOSITY_MIN_LENGTH..CURIOSITY_MAX_LENGTH) {
             setSuggestion { it.copy(error = messages.string(R.string.curiosity_suggest_invalid)) }
             return
         }

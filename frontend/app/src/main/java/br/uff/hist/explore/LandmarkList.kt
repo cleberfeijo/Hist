@@ -27,8 +27,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import br.uff.hist.R
 import br.uff.hist.core.designsystem.LocalSecondaryText
+import br.uff.hist.core.designsystem.formatDistance
 import coil3.compose.AsyncImage
-import kotlin.math.roundToInt
 
 @Composable
 fun LandmarkList(
@@ -83,7 +83,7 @@ private fun LandmarkRow(item: LandmarkItem, onClick: (String) -> Unit) {
             }
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (item.distanceM != null) {
-                    Text(distanceText(item.distanceM), style = MaterialTheme.typography.labelMedium, color = LocalSecondaryText.current)
+                    Text(formatDistance(item.distanceM), style = MaterialTheme.typography.labelMedium, color = LocalSecondaryText.current)
                 }
                 if (item.chatAvailable) {
                     Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.primary) {
@@ -99,11 +99,3 @@ private fun LandmarkRow(item: LandmarkItem, onClick: (String) -> Unit) {
         }
     }
 }
-
-@Composable
-private fun distanceText(meters: Double): String =
-    if (meters < 1000) {
-        stringResource(R.string.distance_m, meters.roundToInt())
-    } else {
-        stringResource(R.string.distance_km, "%.1f".format(meters / 1000))
-    }

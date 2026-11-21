@@ -1,6 +1,5 @@
 package br.uff.hist.moderation
 
-import android.text.format.DateUtils
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import br.uff.hist.R
+import br.uff.hist.core.designsystem.formatRelativeDate
 import br.uff.hist.core.designsystem.LocalSecondaryText
 import br.uff.hist.core.designsystem.components.ErrorState
 import br.uff.hist.core.designsystem.components.LoadingState
@@ -152,7 +152,7 @@ private fun <T> QueueList(
 @Composable
 private fun LandmarkRow(landmark: Landmark, onClick: () -> Unit) {
     // A API não expõe o nome do autor do ponto: só se sabe se veio do crawler (sem autor).
-    val date = landmark.createdAt?.let { relativeDate(it) }
+    val date = landmark.createdAt?.let { formatRelativeDate(it) }
     val byline = listOfNotNull(
         if (landmark.createdBy == null) stringResource(R.string.moderation_imported) else null,
         date,
@@ -160,12 +160,9 @@ private fun LandmarkRow(landmark: Landmark, onClick: () -> Unit) {
     RowLayout(landmark.name, stringResource(landmark.category.label), byline, onClick)
 }
 
-private fun relativeDate(at: java.time.Instant): String =
-    DateUtils.getRelativeTimeSpanString(at.toEpochMilli(), System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
-
 @Composable
 private fun CuriosityRow(curiosity: Curiosity, onClick: () -> Unit) {
-    val date = relativeDate(curiosity.createdAt)
+    val date = formatRelativeDate(curiosity.createdAt)
     val author = curiosity.authorName ?: stringResource(R.string.moderation_imported)
     RowLayout(curiosity.text.take(SNIPPET_LENGTH), curiosity.landmarkName, "$author · $date", onClick)
 }

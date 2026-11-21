@@ -6,7 +6,12 @@ import br.uff.hist.R
 import br.uff.hist.core.location.LocationPriority
 import br.uff.hist.core.location.LocationProvider
 import br.uff.hist.core.model.Category
+import br.uff.hist.core.model.CURIOSITY_MAX_LENGTH
+import br.uff.hist.core.model.CURIOSITY_MIN_LENGTH
+import br.uff.hist.core.model.DESCRIPTION_MAX_LENGTH
 import br.uff.hist.core.model.GeoPoint
+import br.uff.hist.core.model.LANDMARK_NAME_MAX_LENGTH
+import br.uff.hist.core.model.LANDMARK_NAME_MIN_LENGTH
 import br.uff.hist.core.model.RIO_DAS_OSTRAS
 import br.uff.hist.core.network.ApiResult
 import br.uff.hist.core.network.AppError
@@ -21,11 +26,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-private const val NAME_MIN = 2
-private const val NAME_MAX = 200
-private const val DESCRIPTION_MAX = 5000
-private const val CURIOSITY_MIN = 10
-private const val CURIOSITY_MAX = 2000
 
 /** Chaves de campo renderizadas pela tela (as mesmas do servidor); `latitude`/`longitude` caem no erro geral. */
 object SuggestFields {
@@ -105,13 +105,13 @@ class SuggestLandmarkViewModel @Inject constructor(
     }
 
     private fun validate(s: SuggestLandmarkUiState): Map<String, String> = buildMap {
-        if (s.name.trim().length !in NAME_MIN..NAME_MAX) put(SuggestFields.NAME, messages.string(R.string.suggest_error_name))
+        if (s.name.trim().length !in LANDMARK_NAME_MIN_LENGTH..LANDMARK_NAME_MAX_LENGTH) put(SuggestFields.NAME, messages.string(R.string.suggest_error_name))
         if (s.category == null) put(SuggestFields.CATEGORY, messages.string(R.string.suggest_error_category))
-        if (s.description.trim().length > DESCRIPTION_MAX) {
+        if (s.description.trim().length > DESCRIPTION_MAX_LENGTH) {
             put(SuggestFields.DESCRIPTION, messages.string(R.string.suggest_error_description))
         }
         val curiosity = s.curiosity.trim()
-        if (curiosity.isNotEmpty() && curiosity.length !in CURIOSITY_MIN..CURIOSITY_MAX) {
+        if (curiosity.isNotEmpty() && curiosity.length !in CURIOSITY_MIN_LENGTH..CURIOSITY_MAX_LENGTH) {
             put(SuggestFields.CURIOSITY, messages.string(R.string.suggest_error_curiosity))
         }
     }
