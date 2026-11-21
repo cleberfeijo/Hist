@@ -21,6 +21,14 @@ class ThemeTest {
     val compose = createComposeRule()
 
     @Test
+    fun isDarkFollowsPreferenceOrSystem() {
+        assertEquals(false, ThemePreference.LIGHT.isDark(systemDark = true))
+        assertEquals(true, ThemePreference.DARK.isDark(systemDark = false))
+        assertEquals(true, ThemePreference.SYSTEM.isDark(systemDark = true))
+        assertEquals(false, ThemePreference.SYSTEM.isDark(systemDark = false))
+    }
+
+    @Test
     fun lightSchemeUsesPatrimonioColors() {
         assertEquals(Color(0xFFB4532A), HistColors.light.primary)
         assertEquals(Color(0xFFF6F1E9), HistColors.light.background)

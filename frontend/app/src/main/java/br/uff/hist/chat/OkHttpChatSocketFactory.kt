@@ -59,7 +59,7 @@ private class OkHttpChatConnection(client: OkHttpClient, url: String, token: Str
     override val events: Flow<SocketEvent> = channel.receiveAsFlow()
 
     private val webSocket: WebSocket = client.newWebSocket(
-        // O JWT vai no header (não na URL, para não vazar em logs); header() substitui o do AuthInterceptor.
+        // O JWT vai no header (não na URL, para não vazar em logs). O AuthInterceptor não reescreve um Authorization já presente; ambos levam o mesmo token.
         Request.Builder().url(url).header("Authorization", "Bearer $token").build(),
         object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {

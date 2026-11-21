@@ -1,4 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Hist" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Splash do sistema (segura a tela até a preferência de tema carregar); depois vira Theme.Hist.App. -->
+    <style name="Theme.Hist" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/hist_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Hist.App</item>
+    </style>
+
+    <!-- Fundo da janela na paleta e barras transparentes (o edge-to-edge desenha o conteúdo por baixo). -->
+    <style name="Theme.Hist.App" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/hist_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
 </resources>

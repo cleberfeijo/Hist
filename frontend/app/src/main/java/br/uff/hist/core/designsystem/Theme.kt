@@ -14,16 +14,19 @@ enum class ThemePreference { LIGHT, DARK, SYSTEM }
 val LocalSecondaryText: ProvidableCompositionLocal<Color> =
     staticCompositionLocalOf { SecondaryTextLight }
 
+/** Tema efetivo: a preferência explícita ou, em SYSTEM, o que o sistema estiver usando. */
+fun ThemePreference.isDark(systemDark: Boolean): Boolean = when (this) {
+    ThemePreference.LIGHT -> false
+    ThemePreference.DARK -> true
+    ThemePreference.SYSTEM -> systemDark
+}
+
 @Composable
 fun HistTheme(
     preference: ThemePreference = ThemePreference.SYSTEM,
     content: @Composable () -> Unit,
 ) {
-    val dark = when (preference) {
-        ThemePreference.LIGHT -> false
-        ThemePreference.DARK -> true
-        ThemePreference.SYSTEM -> isSystemInDarkTheme()
-    }
+    val dark = preference.isDark(isSystemInDarkTheme())
     CompositionLocalProvider(
         LocalSecondaryText provides if (dark) SecondaryTextDark else SecondaryTextLight,
     ) {

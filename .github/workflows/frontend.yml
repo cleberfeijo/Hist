@@ -13,6 +13,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,5 +35,5 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
-      - name: Lint, testes e build
-        run: ./gradlew :app:lintDebug :app:testDebugUnitTest :app:assembleDebug
+      - name: Lint, testes e build (inclui o AAB de release, sem assinatura) (inclui o AAB de release, sem assinatura)
+        run: ./gradlew :app:lintDebug :app:testDebugUnitTest :app:assembleDebug :app:bundleRelease :app:bundleRelease
