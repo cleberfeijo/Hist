@@ -73,14 +73,20 @@ fun ExploreMap(
     var loaded by remember { mutableStateOf(false) }
 
     // A última posição conhecida chega depois da primeira composição; só vale até o usuário mexer no mapa.
+    // `CameraUpdateFactory` só pode ser usado depois que o Maps inicializa (sem chave ele nunca inicializa):
+    // antes disso a posição é atribuída direto, o que é seguro.
     LaunchedEffect(state.initialCamera) {
-        if (!centeredOnUser) cameraState.move(CameraUpdateFactory.newLatLngZoom(state.initialCamera.toLatLng(), INITIAL_ZOOM))
+        if (!centeredOnUser) cameraState.position = CameraPosition.fromLatLngZoom(state.initialCamera.toLatLng(), INITIAL_ZOOM)
     }
-    LaunchedEffect(state.user != null) {
+    LaunchedEffect(state.user != null, loaded) {
         val user = state.user
         if (user != null && !centeredOnUser) {
             onCenteredOnUser()
-            cameraState.animate(CameraUpdateFactory.newLatLngZoom(user.toLatLng(), USER_ZOOM))
+            if (loaded) {
+                cameraState.animate(CameraUpdateFactory.newLatLngZoom(user.toLatLng(), USER_ZOOM))
+            } else {
+                cameraState.position = CameraPosition.fromLatLngZoom(user.toLatLng(), USER_ZOOM)
+            }
         }
     }
     LaunchedEffect(loaded) {
