@@ -100,3 +100,6 @@ frontend/.kotlin/
 frontend/**/build/
 *.jks
 *.keystore
+
+# Documentos do TCC (Word) ficam fora do repositório
+*.docx
